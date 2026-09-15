@@ -1,0 +1,135 @@
+# ==================== Python ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ==================== ROS / catkin ====================
+devel/
+logs/
+build/
+bin/
+.catkin_tools
+.catkin_tools_history
+.catkin_workspace
+.code_outline
+
+# Serialized / cache
+*.gch
+
+# ==================== Testing / Coverage ====================
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# ==================== Model / Data artifacts ====================
+*.h5
+*.hdf5
+*.pth
+*.onnx
+*.ckpt
+*.bin
+*.faiss
+*.npy
+*.npz
+*.pkl
+*.pickle
+
+# ==================== IDE ====================
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# PyCharm / IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Eclipse / CDT
+.settings/
+.cproject
+.project
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*#
+.#*
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# ==================== OS ====================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+
+# ==================== Logs / Temp ====================
+*.log
+*.tmp
+*.temp
+*.bak
+*.out
+tmp/
+temp/
+
+# ==================== Jupyter ====================
+.ipynb_checkpoints
+
+# ==================== Audio / Generated media (按需调整) ====================
+# 如果 MP3 是生成产物而非资源文件，取消下面注释
+# text_to_mp3/output/
+# *.mp3
