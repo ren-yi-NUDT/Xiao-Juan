@@ -123,9 +123,9 @@ def suppress_stdout():
 # ================== FunASR KWS: iic/speech_charctc_kws_phone-xiaoyun ==================
 class XiaoYunKWS:
     """
-    使用 FunASR 的“小云小云”唤醒模型：
+    使用 FunASR 的 CTC-KWS 唤醒模型（关键词为运行时参数，可任意替换）：
       - 模型: iic/speech_charctc_kws_phone-xiaoyun
-      - 默认唤醒词: "小云小云"
+      - 默认唤醒词: "小娟小娟"（经 keywords 参数传入）
     """
 
     DEFAULT_KWS_MODEL = "/home/igraperobot3/Model/speech_charctc_kws_phone-xiaoyun"
@@ -201,7 +201,7 @@ class XiaoYunKWS:
                         score = 0.0
 
                 # 2) 如果没有 score 字段,就从 text 末尾解析浮点数
-                #    你的格式：'detected 小云小云 0.2672964678'
+                #    你的格式：'detected 小娟小娟 0.2672964678'
                 if score == 0.0:
                     m = re.search(r'(-?\d+\.\d+|\d+)(?:\s*)$', text_raw.strip())
                     if m:
@@ -210,7 +210,7 @@ class XiaoYunKWS:
                         except Exception:
                             score = 0.0
 
-                # 3) 判断是否命中 keyword（你的 text 里包含“小云小云”）
+                # 3) 判断是否命中 keyword（你的 text 里包含“小娟小娟”）
                 hit_kw = (self.keyword in text_raw) or (self.keyword in text)
 
                 # 4) 判断 detected
