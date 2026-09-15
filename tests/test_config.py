@@ -9,7 +9,6 @@ MINIMAL_YAML = textwrap.dedent("""
     wake_word: "小娟小娟"
     kws_model_path: "{tmp}/kws"
     kws_device: "cpu"
-    kws_rms_gate: 0.01
     asr_model_path: "{tmp}/asr"
     asr_device: "cpu"
     mic_device_name: "test-mic"
@@ -21,7 +20,6 @@ MINIMAL_YAML = textwrap.dedent("""
     tts_ckpt_path: ""
     tts_device: "cpu"
     tts_speed: 1.0
-    tts_sample_rate: 22050
     session_hold_sec: 15.0
     auto_resume_silence_sec: 0.5
     resume_check_period: 0.2

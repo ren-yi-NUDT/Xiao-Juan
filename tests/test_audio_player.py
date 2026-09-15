@@ -42,9 +42,10 @@ def fake_music(monkeypatch):
     return music
 
 
-def _drain(poll=0.02, deadline=1.0):
+def _drain(cond, poll=0.01, deadline=1.0):
+    """轮询等待 cond() 成立（回调在 watcher 线程异步触发）。"""
     t0 = time.time()
-    while time.time() - t0 < deadline:
+    while not cond() and time.time() - t0 < deadline:
         time.sleep(poll)
 
 
@@ -54,7 +55,7 @@ def test_start_plays_and_finish_callback(fake_music):
     assert player.start("demo.mp3") is True
     assert fake_music.loaded == "demo.mp3"
     fake_music.busy = False          # 模拟自然播完
-    _drain()
+    _drain(lambda: got)
     assert got == ["finished"]
 
 
@@ -64,7 +65,7 @@ def test_stop_interrupts_once(fake_music):
     player.start("demo.mp3")
     player.stop()
     player.stop()                    # 第二次应被忽略
-    _drain()
+    _drain(lambda: got)
     assert got == ["interrupted"]
     assert fake_music.stops >= 1
 
@@ -78,7 +79,7 @@ def test_pause_resume_cycle(fake_music):
     assert player.resume() is True
     assert player.resume() is False  # 未暂停，恢复无效
     fake_music.busy = False
-    _drain()
+    _drain(lambda: got)
     assert got == ["finished"]
 
 
@@ -90,5 +91,5 @@ def test_start_failure_returns_false(fake_music):
     got = []
     player = AudioPlayer(on_finished=got.append, poll_interval=0.01)
     assert player.start("missing.mp3") is False
-    _drain()
+    time.sleep(0.05)                 # 给足时间确认不会回调
     assert got == []                 # 失败不应触发 finished/interrupted

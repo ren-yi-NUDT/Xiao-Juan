@@ -19,7 +19,7 @@ import os
 import sys
 import threading
 
-from scripts.config import load_config
+from scripts.config import PATH_KEYS, load_config
 
 
 def setup_logging(level=logging.INFO):
@@ -68,9 +68,8 @@ def run_check() -> int:
             print(f"[check] FAIL: {line}")
         return 1
 
-    missing = [k for k in ("kws_model_path", "asr_model_path", "tts_config_path",
-                           "tts_ckpt_path", "embed_model_path", "museum_txt_path",
-                           "vector_db_path") if not os.path.exists(cfg.get(k, ""))]
+    missing = [k for k in PATH_KEYS
+               if cfg.get(k) and not os.path.exists(cfg.get(k))]
     if missing:
         print(f"[check] 提示: 以下模型/数据路径在本机不存在（真机运行前需就绪）: {missing}")
     print("[check] DONE")
@@ -113,10 +112,10 @@ def main():
     app = LMAMApp(cfg)
     app.start()
 
-    threading.Thread(target=cli_loop, args=(app,), daemon=True).start()
+    cli_thread = threading.Thread(target=cli_loop, args=(app,), daemon=True)
+    cli_thread.start()
     try:
-        while threading.active_count() > 1:
-            threading.Event().wait(0.5)
+        cli_thread.join()  # 生命周期跟随调试 CLI（quit/EOF 即退出）
     except KeyboardInterrupt:
         app.shutdown()
 

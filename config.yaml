@@ -5,7 +5,6 @@
 wake_word: "小娟小娟"          # 唤醒词
 kws_model_path: "/home/igraperobot3/Model/speech_charctc_kws_phone-xiaoyun"
 kws_device: "cuda"             # 无 GPU 改 cpu
-kws_rms_gate: 0.01
 
 # ---------- ASR ----------
 asr_model_path: "/home/igraperobot3/Model/faster-whisper-large-v3"
@@ -17,7 +16,6 @@ tts_config_path: "/home/igraperobot3/Model/melo/ZH/config.json"
 tts_ckpt_path: "/home/igraperobot3/Model/melo/ZH/checkpoint.pth"
 tts_device: "cuda"
 tts_speed: 1.0
-tts_sample_rate: 22050
 
 # ---------- LLM / RAG ----------
 llm_api_base: "http://192.168.3.11:8088/v1"

@@ -40,9 +40,9 @@ _STUB_SPECS = {
 _EXCEPTION_ATTRS = {"WaitTimeoutError"}
 
 # 需要功能性实现（matcher 单测依赖其行为）的属性：name -> {attr: factory}
+# rapidfuzz 不在此列：缺失时整体替换为 _make_fuzz_module()（见 _ensure）
 _FUNCTIONAL_ATTRS = {
     "cn2an": {"transform": lambda text, mode: text},
-    "rapidfuzz": {"fuzz": None},  # None 表示在 _ensure 里特殊构造
 }
 
 

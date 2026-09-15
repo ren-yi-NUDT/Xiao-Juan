@@ -49,6 +49,14 @@ def _make_player():
     return player
 
 
+def _stub_decode(monkeypatch):
+    """伪造 sf.read 与 TTS 合成，避免真实音频路径。"""
+    monkeypatch.setattr(tl, "sf", type("SF", (), {
+        "read": staticmethod(lambda buf, dtype: (np.zeros(100, dtype="float32"), 22050))}))
+    monkeypatch.setattr(tl.TTSLocalPlayer, "_run_tts_to_bytes",
+                        lambda self, text: b"wav")
+
+
 def test_speak_empty_text_noop(monkeypatch):
     FakePlayerModule.reset()
     monkeypatch.setattr(tl, "sd", FakePlayerModule)
@@ -60,10 +68,7 @@ def test_speak_empty_text_noop(monkeypatch):
 def test_speak_plays_audio(monkeypatch):
     FakePlayerModule.reset()
     monkeypatch.setattr(tl, "sd", FakePlayerModule)
-    monkeypatch.setattr(tl, "sf", type("SF", (), {
-        "read": staticmethod(lambda buf, dtype: (np.zeros(100, dtype="float32"), 22050))}))
-    monkeypatch.setattr(tl.TTSLocalPlayer, "_run_tts_to_bytes",
-                        lambda self, text: b"wav")
+    _stub_decode(monkeypatch)
     player = _make_player()
     player.speak("你好")
     kinds = [c[0] for c in FakePlayerModule.calls]
@@ -73,10 +78,7 @@ def test_speak_plays_audio(monkeypatch):
 def test_stop_breaks_speak(monkeypatch):
     FakePlayerModule.reset()
     monkeypatch.setattr(tl, "sd", FakePlayerModule)
-    monkeypatch.setattr(tl, "sf", type("SF", (), {
-        "read": staticmethod(lambda buf, dtype: (np.zeros(100, dtype="float32"), 22050))}))
-    monkeypatch.setattr(tl.TTSLocalPlayer, "_run_tts_to_bytes",
-                        lambda self, text: b"wav")
+    _stub_decode(monkeypatch)
     player = _make_player()
 
     real_is_playing = FakePlayerModule.is_playing

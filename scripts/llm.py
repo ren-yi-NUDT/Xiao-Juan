@@ -307,29 +307,30 @@ class LLM_ASSISTENT:
         print(f"[NAV] LLM cost: {t_llm1 - t_llm0:.2f}s")
         return nav_text
         
+# SYSTEM_PROMPT1 允许的指令白名单（第二行必须以 / 开头，故条目均带 /）
+_VALID_COMMANDS = frozenset({
+    "/manipulate xitong",
+    "/release xitong",
+    "/move_to Landmark1",
+    "/move_to Landmark2",
+    "/move_to Landmark3",
+    "/move_to Landmark4",
+    "/move_to Landmark5",
+    "/move_to Landmark6",
+    "/move_to Landmark7",
+    "/move_to Landmark8",
+    "/start",
+    "/resume",
+    "/leave",
+    "/NG",
+})
+
+
 def is_valid_command(response_text):
     """检查SYSTEM_PROMPT1的回复中指令是否合法"""
     lines = response_text.split("\n")
     if len(lines) >= 2 and lines[1].startswith("/"):
-        command = lines[1].strip()
-        valid_commands = [
-            "manipulate",
-            "/manipulate xitong",
-            "/release xitong",
-            "/move_to Landmark1",
-            "/move_to Landmark2",
-            "/move_to Landmark3",
-            "/move_to Landmark4",
-            "/move_to Landmark5",
-            "/move_to Landmark6",
-            "/move_to Landmark7",
-            "/move_to Landmark8",
-            "/start",
-            "/resume",
-            "/leave",
-            "/NG"
-        ]
-        return command in valid_commands
+        return lines[1].strip() in _VALID_COMMANDS
     return True
 
 def parse_command(item: str):

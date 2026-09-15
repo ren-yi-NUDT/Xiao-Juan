@@ -10,13 +10,13 @@ DEFAULT_CONFIG_PATH = os.path.join(
 # 必填键：缺失即拒绝启动（app 以属性方式访问这些键，缺失会在构建中途才 AttributeError）
 REQUIRED_KEYS = (
     # KWS / 唤醒
-    "wake_word", "kws_model_path", "kws_device", "kws_rms_gate",
+    "wake_word", "kws_model_path", "kws_device",
     # ASR
     "asr_model_path", "asr_device", "mic_device_name",
     # LLM / RAG
     "llm_api_base", "embed_model_path", "museum_txt_path", "vector_db_path",
     # TTS
-    "tts_config_path", "tts_ckpt_path", "tts_device", "tts_speed", "tts_sample_rate",
+    "tts_config_path", "tts_ckpt_path", "tts_device", "tts_speed",
     # 会话 / 状态机
     "session_hold_sec", "auto_resume_silence_sec", "resume_check_period",
     "only_resume_when_idle", "idle_timeout_sec",

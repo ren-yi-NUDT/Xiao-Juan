@@ -7,6 +7,7 @@ speak(text) 阻塞至播完（与原 await 语义一致）；stop() 可从其它
 
 import io
 import logging
+import os
 import tempfile
 import threading
 import time
@@ -26,10 +27,8 @@ class TTSLocalPlayer:
         language: str = "ZH",
         speaker_key: str = "ZH",
         speed: float = 1.0,
-        sample_rate: int = 22050,
     ):
         self.speed = speed
-        self.sample_rate = sample_rate
         # 延迟导入：melo 加载很重，--check/单测不需要
         from melo.api import TTS
         self.tts = TTS(
@@ -49,12 +48,17 @@ class TTSLocalPlayer:
         self._speak_lock = threading.Lock()
 
     def _run_tts_to_bytes(self, text: str) -> bytes:
-        """同步：TTS -> wav bytes（与原实现一致，临时文件放系统临时目录）。"""
+        """同步：TTS -> wav bytes（melo 只支持写文件，落系统临时目录并及时清理）。"""
         tmp_wav = f"{tempfile.gettempdir()}/tts_{int(time.time() * 1000)}.wav"
-        self.tts.tts_to_file(text, self.speaker_id, tmp_wav, speed=self.speed)
-        with open(tmp_wav, "rb") as f:
-            wav_bytes = f.read()
-        return wav_bytes
+        try:
+            self.tts.tts_to_file(text, self.speaker_id, tmp_wav, speed=self.speed)
+            with open(tmp_wav, "rb") as f:
+                return f.read()
+        finally:
+            try:
+                os.remove(tmp_wav)
+            except OSError:
+                pass
 
     def speak(self, text: str) -> None:
         """阻塞式播报；stop() 可打断。多线程调用时按先后串行播报。"""

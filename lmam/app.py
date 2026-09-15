@@ -33,18 +33,13 @@ class LMAMApp:
         self.shared_state = SharedState(idle_timeout_sec=float(cfg.idle_timeout_sec))
         self.ctrl = ClientControlState()
 
-        # 会话窗口（唤醒一次后 N 秒内不需要重复唤醒）
-        self.session_hold_sec = float(cfg.session_hold_sec)
-        self.awake_until_ts = 0.0
-
-        # 静默计时
+        # 静默计时（自动续播的静默窗口起点）
         self.last_activity_ts = time.time()
 
         # 讲解是否处于"断点待续播"
         self.guide_paused = False
 
-        # 自动 resume 控制
-        self.resume_inflight = False
+        # 自动续播参数
         self.pause_deadline_sec = float(cfg.auto_resume_silence_sec)
         self.resume_check_period = float(cfg.resume_check_period)
         self.only_resume_when_idle = bool(cfg.only_resume_when_idle)
@@ -61,7 +56,6 @@ class LMAMApp:
             model_path=cfg.kws_model_path,
             device=cfg.kws_device,
         )
-        self.kws_rms_gate = float(cfg.kws_rms_gate)
         self.assistant = assistant or LLM_ASSISTENT(
             api_base=cfg.llm_api_base,
             embed_model_path=cfg.embed_model_path,
@@ -73,28 +67,22 @@ class LMAMApp:
             ckpt_path=cfg.tts_ckpt_path,
             device=cfg.tts_device,
             speed=float(cfg.tts_speed),
-            sample_rate=int(cfg.tts_sample_rate),
         )
 
         # ====== 本地讲解播放器（替代 Orin audio_control） ======
         self.player = player or AudioPlayer(on_finished=self._on_audio_finished)
 
-        # ====== 运行时字段（保留原命名） ======
+        # ====== LLM 上下文（控制层重写时由实机状态回填） ======
         self.unvisited_landmarks = None
-        self.audio_done_path = ""
-        self.txt_command = ""
-        self.idle_timeout = None
-        self.last_command = None
-        self.last_replytxt = None
-        self.idle_txt = None
         self.current_landmark = "Landmark0"
-        self.leave_send = False
 
         # ====== 线程间队列 / 线程控制 ======
         self.asr_text_queue = queue.Queue()
         self.mic_stop = threading.Event()
         self._consumer_stop = threading.Event()
         self._threads_started = False
+        self._mic_thread = None
+        self._consumer_thread = None
 
         self._enter_idle("boot")
 
@@ -106,8 +94,12 @@ class LMAMApp:
         if self._threads_started:
             return
         self._threads_started = True
-        threading.Thread(target=self._mic_worker, daemon=True).start()
-        threading.Thread(target=self._asr_text_consumer, daemon=True).start()
+        self._mic_thread = threading.Thread(
+            target=self._mic_worker, daemon=True, name="mic")
+        self._consumer_thread = threading.Thread(
+            target=self._asr_text_consumer, daemon=True, name="asr-consumer")
+        self._mic_thread.start()
+        self._consumer_thread.start()
         log.info("[LMAM] started. mic thread + consumer thread ready.")
 
     def shutdown(self):
@@ -125,6 +117,10 @@ class LMAMApp:
             self.local_listener.destroy()
         except Exception:  # noqa: BLE001
             pass
+        # 等工作线程收尾（mic 可能阻塞在单次收音里，给个上限即可）
+        for t in (self._mic_thread, self._consumer_thread):
+            if t is not None and t.is_alive():
+                t.join(timeout=2.0)
         log.info("[LMAM] shutdown complete.")
 
     # =========================
@@ -134,10 +130,10 @@ class LMAMApp:
         """播放讲解音频（原 agent audio_start 命令的本地等价）。"""
         self._enter_idle("audio_start")
         self.guide_paused = False
-        self.shared_state.set_audio_playing(True, None)
+        self.shared_state.set_audio_playing(True)
         ok = self.player.start(path)
         if not ok:
-            self.shared_state.set_audio_playing(False, None)
+            self.shared_state.set_audio_playing(False)
         return ok
 
     def audio_stop(self):
@@ -156,10 +152,9 @@ class LMAMApp:
         if self.shared_state.audio_playing:
             self.player.pause()
             self.guide_paused = True
-            self.shared_state.set_audio_playing(False, None)
+            self.shared_state.set_audio_playing(False)
         self.tts.stop()
         self._enter_active("wakeup")
-        self.idle_timeout = None
         self.last_activity_ts = time.time()
 
     # =========================
@@ -167,10 +162,7 @@ class LMAMApp:
     # =========================
     def _mic_worker(self):
         while not self.mic_stop.is_set():
-            try:
-                mode = self.shared_state.mode
-            except Exception:
-                mode = "IDLE"
+            mode = self.shared_state.mode
 
             # ========== IDLE：只做 KWS ==========
             if mode == "IDLE":
@@ -185,11 +177,8 @@ class LMAMApp:
                     if self.ctrl.can_send("WAKE", min_interval=2.0):
                         log.info("[LMAM] wake word detected -> interrupt playback")
                         self._on_wake()
-                        # 播唤醒提示语（独立线程，不阻塞 mic 循环；
-                        # 状态切换已先行，提示语结束时 _on_tts_finished 兜底回 ACTIVE）
-                        threading.Thread(
-                            target=self._play_wakeup_prompt,
-                            args=(self.cfg.wakeup_prompt,), daemon=True).start()
+                        # 播唤醒提示语（独立线程，不阻塞 mic 循环；播完回 ACTIVE 保持多轮）
+                        self._speak_prompt_async(self.cfg.wakeup_prompt, reactivate=True)
                 continue
 
             # ========== ACTIVE：ASR ==========
@@ -203,15 +192,15 @@ class LMAMApp:
                 if result_text and result_text.strip():
                     self.asr_text_queue.put(result_text.strip())
 
-                # 超时回到 IDLE
+                # 超时回到 IDLE（idle_ts 仅表示本周期 maybe_back_to_idle 是否刚翻转）
+                idle_ts = None
                 if not self.shared_state.tts_playing:
-                    self.idle_timeout = self.shared_state.maybe_back_to_idle()
-                if (self.idle_timeout is not None and not self.guide_paused
+                    idle_ts = self.shared_state.maybe_back_to_idle()
+                if (idle_ts is not None and not self.guide_paused
                         and not self.shared_state.audio_playing
                         and not self.shared_state.tts_playing):
-                    threading.Thread(
-                        target=self._play_backtoIDLE_prompt,
-                        args=(self.cfg.back_to_idle_prompt,), daemon=True).start()
+                    # 回 IDLE 提示语（播完后保持 IDLE，不重新激活）
+                    self._speak_prompt_async(self.cfg.back_to_idle_prompt, reactivate=False)
                 if self.shared_state.mode == "IDLE":
                     log.info("[LMAM] Back to IDLE")
 
@@ -271,84 +260,74 @@ class LMAMApp:
     # 自动续播（原 _resume_check_cb / _auto_resume_mp3_once 的同步版）
     # =========================
     def _resume_check(self):
-        if self.resume_inflight:
-            return
         if not self.guide_paused:
             return
         if self.shared_state.tts_playing:
             return
         if self.only_resume_when_idle and self.shared_state.mode != "IDLE":
             return
-        elapsed = time.time() - float(self.last_activity_ts)
-        if elapsed >= self.pause_deadline_sec:
-            self.resume_inflight = True
+        if time.time() - float(self.last_activity_ts) >= self.pause_deadline_sec:
             log.info("[LMAM] silence window reached, auto-resume")
-            try:
-                self._auto_resume_mp3_once()
-            finally:
-                self.resume_inflight = False
+            self._auto_resume_mp3_once()
 
     def _auto_resume_mp3_once(self):
-        self.shared_state.set_tts_playing(True, None)
-        self._enter_idle("orin playing")
-        self.tts.speak("我继续为您讲解")
+        # 播报续播提示并保持 IDLE（reactivate=False），随后从断点续播 mp3
+        self._speak("我继续为您讲解", reactivate=False)
         ok = self.player.resume()
         if ok:
-            self.shared_state.set_audio_playing(True, None)
+            self.shared_state.set_audio_playing(True)
             self.guide_paused = False
             log.info("[LMAM] auto-resume mp3 success -> guide_paused=False")
         else:
             log.warning("[LMAM] auto-resume mp3 failed -> will retry in next silence window")
-        # TTS 播完清除标志（原由 Orin /tts_playing=False 回调驱动）；
-        # 此刻 mp3 已在播 -> _resume_check 靠 guide_paused=False 短路，模式保持 IDLE
-        self.shared_state.set_tts_playing(False, None)
 
     # =========================
     # TTS 播报 + 状态机驱动（本地版 Orin /tts_playing 反馈）
     # =========================
-    def _speak(self, text: str):
-        """播报一段 TTS：开始前置 tts_playing，结束后按原回调语义驱动状态机。"""
-        self.shared_state.set_tts_playing(True, None)
-        self._enter_idle("orin playing")
-        self.tts.speak(text)
-        self._on_tts_finished()
+    def _speak(self, text: str, reactivate: bool = True):
+        """播报一段 TTS：开始前置 tts_playing，结束后按原回调语义驱动状态机。
 
-    def _on_tts_finished(self):
-        """TTS 播完：镜像原 /tts_playing=False 回调——无音频在播则回 ACTIVE（多轮关键）。"""
-        self.shared_state.set_tts_playing(False, None)
+        try/finally 保证即使注入的 TTS 实现抛异常，tts_playing 也一定被清除，
+        否则 _resume_check 与回 IDLE 判定会被永久卡死。
+        """
+        self.shared_state.set_tts_playing(True)
+        self._enter_idle("orin playing")
+        try:
+            self.tts.speak(text)
+        finally:
+            self._on_tts_finished(reactivate)
+
+    def _on_tts_finished(self, reactivate: bool = True):
+        """TTS 播完：镜像原 /tts_playing=False 回调——无音频在播且需要时回 ACTIVE（多轮关键）。"""
+        self.shared_state.set_tts_playing(False)
         if self.shared_state.audio_playing:
             self._enter_idle("orin audio playing")
             return
-        if self.idle_txt is None or self.cfg.back_to_idle_prompt not in self.idle_txt:
+        if reactivate:
             self._enter_active("no audio playing")
         self.shared_state.on_user_voice()
 
     # =========================
-    # 提示语播放（原协程改同步，由调用方放独立线程）
+    # 提示语播放（独立线程，不阻塞调用线程）
     # =========================
-    def _play_wakeup_prompt(self, text: str = "您好，我在。"):
-        try:
-            self.idle_txt = None
-            self._speak(text)
-        except Exception as e:
-            log.warning("[wakeup_prompt] failed: %s", e)
+    def _speak_prompt_async(self, text: str, reactivate: bool):
+        threading.Thread(target=self._speak_prompt, args=(text, reactivate),
+                         daemon=True).start()
 
-    def _play_backtoIDLE_prompt(self, text: str = "如果您有任何问题请呼唤两声小娟唤醒我哦。"):
+    def _speak_prompt(self, text: str, reactivate: bool):
         try:
-            self.idle_txt = text
-            self._speak(text)
+            self._speak(text, reactivate=reactivate)
         except Exception as e:
-            log.warning("[backto_idle_prompt] failed: %s", e)
+            log.warning("[prompt] speak failed: %s", e)
 
     # =========================
     # 播放完成回调（原 /audio_done 订阅的本地等价）
     # =========================
     def _on_audio_finished(self, status: str):
-        if status in ("finished", "interrupted"):
-            self.shared_state.set_audio_playing(False, None)
+        # AudioPlayer 只回调 "finished" / "interrupted" 两种状态，播放状态一律清除
+        self.shared_state.set_audio_playing(False)
         if status != "finished":
-            log.info("[LMAM] audio done: status=%s（被打断：audio_playing 已清除，断点待续播由唤醒路径标记）",
-                     status)
+            log.info("[LMAM] audio done: status=%s（被打断：断点待续播由唤醒路径标记）", status)
             return
         log.info("[LMAM] audio finished, guide not paused anymore")
         # 讲解自然结束：不再待续播
@@ -359,7 +338,6 @@ class LMAMApp:
     # =========================
     def _enter_idle(self, reason: str = ""):
         self.shared_state.set_mode("IDLE")
-        self.idle_timeout = time.time()
         log.info("[LMAM] -> IDLE (%s)", reason)
 
     def _enter_active(self, reason: str = ""):

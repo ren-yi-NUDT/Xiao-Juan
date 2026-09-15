@@ -56,10 +56,10 @@ class FakePlayer:
 def _make_app():
     cfg = Config({
         "wake_word": "小娟小娟", "asr_filter_words": ["志愿者", "字幕"],
-        "session_hold_sec": 15.0, "auto_resume_silence_sec": 0.5,
+        "auto_resume_silence_sec": 0.5,
         "resume_check_period": 0.2, "idle_timeout_sec": 10.0,
         "only_resume_when_idle": True, "wakeup_prompt": "您好，我在。",
-        "back_to_idle_prompt": "回IDLE", "kws_rms_gate": 0.01,
+        "back_to_idle_prompt": "回IDLE",
     })
     tts = FakeTTS()
     player = FakePlayer()
@@ -102,12 +102,12 @@ def test_handle_text_resume_action():
 
 def test_on_audio_finished_updates_state():
     app, _, _, _ = _make_app()
-    app.shared_state.set_audio_playing(True, None)
+    app.shared_state.set_audio_playing(True)
     app.guide_paused = True
     app._on_audio_finished("finished")
     assert app.shared_state.audio_playing is False
     assert app.guide_paused is False
-    app.shared_state.set_audio_playing(True, None)
+    app.shared_state.set_audio_playing(True)
     app.guide_paused = True
     app._on_audio_finished("interrupted")
     assert app.shared_state.audio_playing is False
@@ -138,7 +138,7 @@ def test_resume_check_skip_when_active():
 def test_on_wake_pauses_player_and_sets_guide_paused():
     app, _, tts, player = _make_app()
     app.shared_state.set_mode("IDLE")
-    app.shared_state.set_audio_playing(True, None)
+    app.shared_state.set_audio_playing(True)
     app._on_wake()
     assert ("pause",) in player.actions           # 断点保留，可 resume
     assert ("interrupt",) not in player.actions   # interrupt 会丢断点位置
@@ -168,7 +168,7 @@ def test_handle_text_clears_tts_playing_and_stays_active():
 
 def test_backto_idle_prompt_keeps_idle():
     app, _, _, _ = _make_app()
-    app._play_backtoIDLE_prompt(app.cfg.back_to_idle_prompt)
+    app._speak_prompt(app.cfg.back_to_idle_prompt, reactivate=False)
     assert app.shared_state.tts_playing is False
     assert app.shared_state.mode == "IDLE"        # 回 IDLE 提示语后不重新激活
 

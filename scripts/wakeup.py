@@ -1,10 +1,9 @@
 DEFAULT_IDLE_TIMEOUT = 10.0
-import subprocess
+import re
 from dataclasses import dataclass, field
-from threading import Lock, Thread
+from threading import Lock
 from funasr import AutoModel
 from contextlib import contextmanager
-from typing import Optional
 import numpy as np
 import os
 import sys
@@ -14,7 +13,6 @@ class SharedState:
     mode: str = "IDLE"
     tts_playing: bool = False
     audio_playing: bool = False
-    tts_proc: Optional[subprocess.Popen] = None
     last_user_activity: float = field(default_factory=time.time)
     lock: Lock = field(default_factory=Lock)
     idle_timeout_sec: float = DEFAULT_IDLE_TIMEOUT
@@ -49,34 +47,14 @@ class SharedState:
             print(f"[State] No activity for {elapsed:.1f}s (> {self.idle_timeout_sec}s), back to IDLE.")
             self.set_mode("IDLE")  # ✅ 此时不在锁里
             return time.time()
-    def set_tts_playing(self, playing: bool, proc: Optional[subprocess.Popen] = None):
+    def set_tts_playing(self, playing: bool):
         with self.lock:
             self.tts_playing = playing
-            if proc is not None:
-                self.tts_proc = proc
-            elif not playing:
-                self.tts_proc = None
             print(f"[State] tts_playing -> {playing}")
-    def set_audio_playing(self, playing: bool, proc: Optional[subprocess.Popen] = None):
+    def set_audio_playing(self, playing: bool):
         with self.lock:
             self.audio_playing = playing
-            if proc is not None:
-                self.tts_proc = proc
-            elif not playing:
-                self.tts_proc = None
             print(f"[State] audio_playing -> {playing}")
-
-    def stop_tts(self):
-        with self.lock:
-            self._stop_tts_nolock()
-
-    def is_active(self) -> bool:
-        with self.lock:
-            return self.mode == "ACTIVE"
-
-    def is_idle(self) -> bool:
-        with self.lock:
-            return self.mode == "IDLE"
 # ================== Client 控制防抖：WAKE / INTERRUPT 共用 2 秒窗口 ==================
 class ClientControlState:
     """
@@ -183,7 +161,6 @@ class XiaoYunKWS:
         except Exception as e:
             print(f"[KWS] FunASR generate error: {e}")
             return False
-        import re
         score = 0.0
         detected = False
         try:

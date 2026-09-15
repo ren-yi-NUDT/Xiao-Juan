@@ -5,8 +5,11 @@
 - start(path)  开始播放
 - pause()      暂停（断点保留）
 - resume()     从断点续播
-- stop()/interrupt()  停止（视为被打断）
-自然播完回调 on_finished("finished")；stop/interrupt 回调 on_finished("interrupted")。
+- stop()/interrupt()  停止（视为被打断，两名字等价，保留双名对齐原接口）
+
+on_finished 回调契约：在触发 stop/interrupt 或 watcher 发现播完的线程上
+【同步】调用。调用方若依赖自身状态（如 audio_playing），必须先改状态再调
+stop/interrupt（同步回调会立刻读到新状态）。
 """
 
 import logging
@@ -65,10 +68,11 @@ class AudioPlayer:
         return True
 
     def stop(self) -> None:
+        """停止播放，回调 on_finished("interrupted")。"""
         self._finish("interrupted")
 
-    def interrupt(self) -> None:
-        self._finish("interrupted")
+    # 原接口双名：interrupt 与 stop 语义相同（原 Orin interrupt 命令）
+    interrupt = stop
 
     # ---- 内部 ----
     def _finish(self, status: str) -> None:
