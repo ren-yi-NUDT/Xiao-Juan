@@ -18,12 +18,12 @@ from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 LLM_API_BASE = "http://192.168.3.11:8088/v1"
+EMBED_MODEL_PATH = "/home/igraperobot3/Model/BAAI/bge-large-zh-v1.5"
 MAX_HISTORY_ROUNDS = 10
 DB_FILE_PATH = "/home/igraperobot3/Model/BAAI/museum.txt"
 VECTOR_DB_PATH = "/home/igraperobot3/Model/vector_database_faiss/"
 class KnowledgeBase:
-    def __init__(self, device="cuda"):
-        model_name = "/home/igraperobot3/Model/BAAI/bge-large-zh-v1.5"
+    def __init__(self, device="cuda", model_name=EMBED_MODEL_PATH):
         print(f"Initializing embedding model from local path: {model_name}...")
 
         if not os.path.isdir(model_name):
@@ -85,32 +85,33 @@ class KnowledgeBase:
         return vector_db
 
 class LLM_ASSISTENT:
-    def __init__(self):
+    def __init__(self, api_base=LLM_API_BASE, embed_model_path=EMBED_MODEL_PATH,
+                 db_file_path=DB_FILE_PATH, vector_db_path=VECTOR_DB_PATH):
         def _build_vector_db():
             vector_database = None
-            kb_builder = KnowledgeBase(device="cuda")
-            if os.path.exists(VECTOR_DB_PATH):
-                print(f"Found existing vector database at '{VECTOR_DB_PATH}'. Loading...")
+            kb_builder = KnowledgeBase(device="cuda", model_name=embed_model_path)
+            if os.path.exists(vector_db_path):
+                print(f"Found existing vector database at '{vector_db_path}'. Loading...")
                 start_time = time.time()
                 vector_database = FAISS.load_local(
-                    VECTOR_DB_PATH,
+                    vector_db_path,
                     kb_builder.embedding_model,
                     allow_dangerous_deserialization=True,
                 )
                 print(f"Database loaded in {time.time() - start_time:.2f} seconds.")
             else:
                 print(f"No existing database found. Building a new one...")
-                vector_database = kb_builder.build_vector_db(DB_FILE_PATH)
+                vector_database = kb_builder.build_vector_db(db_file_path)
                 if vector_database:
-                    print(f"Saving new vector database to '{VECTOR_DB_PATH}'...")
-                    vector_database.save_local(VECTOR_DB_PATH)
+                    print(f"Saving new vector database to '{vector_db_path}'...")
+                    vector_database.save_local(vector_db_path)
                     print("Database saved successfully.")
             return vector_database
         vector_db = _build_vector_db()
         if not vector_db:
             raise ValueError("Vector database is not valid.")
         self.vector_db = vector_db
-        self.llm_client = openai.Client(base_url=LLM_API_BASE, api_key="EMPTY")
+        self.llm_client = openai.Client(base_url=api_base, api_key="EMPTY")
         print("\nEnd-to-end RAG system is ready.")
         self.conversation_history=[]
         
@@ -157,31 +158,6 @@ class LLM_ASSISTENT:
         if len(self.conversation_history) > max_messages:
             self.conversation_history = self.conversation_history[-max_messages:]
 
-    def is_valid_command(self, response_text):
-        """检查SYSTEM_PROMPT1的回复中指令是否合法"""
-        lines = response_text.split("\n")
-        if len(lines) >= 2 and lines[1].startswith("/"):
-            command = lines[1].strip()
-            valid_commands = [
-                "manipulate",
-                "/manipulate xitong",
-                "/release xitong",
-                "/move_to Landmark1",
-                "/move_to Landmark2",
-                "/move_to Landmark3",
-                "/move_to Landmark4",
-                "/move_to Landmark5",
-                "/move_to Landmark6",
-                "/move_to Landmark7",
-                "/move_to Landmark8",
-                "/start",
-                "/resume",  
-                "/leave",   
-                "/NG"    
-            ]
-            return command in valid_commands
-        return True
-
     def chat(self, user_input,unvisited,current_landmark, top_k=20):
         start = time.time()
         unvisited_landmarks = json.dumps(
@@ -212,7 +188,7 @@ class LLM_ASSISTENT:
                 )
                 ai_response = response.choices[0].message.content
                 self._update_history(user_input,ai_response)
-                if not self.is_valid_command(ai_response):
+                if not is_valid_command(ai_response):
                     print("检测到非法指令，使用SYSTEM_PROMPT4重新生成..." + ai_response)
                     messages = [{'role': 'system', 'content': SYSTEM_PROMPT4}]
                     messages.extend(self.conversation_history) # 注入历史记忆
@@ -331,6 +307,32 @@ class LLM_ASSISTENT:
         print(f"[NAV] LLM cost: {t_llm1 - t_llm0:.2f}s")
         return nav_text
         
+# SYSTEM_PROMPT1 允许的指令白名单（第二行必须以 / 开头，故条目均带 /）
+_VALID_COMMANDS = frozenset({
+    "/manipulate xitong",
+    "/release xitong",
+    "/move_to Landmark1",
+    "/move_to Landmark2",
+    "/move_to Landmark3",
+    "/move_to Landmark4",
+    "/move_to Landmark5",
+    "/move_to Landmark6",
+    "/move_to Landmark7",
+    "/move_to Landmark8",
+    "/start",
+    "/resume",
+    "/leave",
+    "/NG",
+})
+
+
+def is_valid_command(response_text):
+    """检查SYSTEM_PROMPT1的回复中指令是否合法"""
+    lines = response_text.split("\n")
+    if len(lines) >= 2 and lines[1].startswith("/"):
+        return lines[1].strip() in _VALID_COMMANDS
+    return True
+
 def parse_command(item: str):
     item = item.lstrip("/")
     parts = item.split(maxsplit=1)

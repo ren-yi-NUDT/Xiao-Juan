@@ -1,8 +1,0 @@
-# goal
-string command   # start / pause / resume / stop
-string path      # mp3/wav 路径,只有 start 时有用
----
-bool success
-string message
----
-string state

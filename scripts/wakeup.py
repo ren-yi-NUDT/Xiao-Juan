@@ -1,11 +1,9 @@
-#!/home/igraperobot3/anaconda3/envs/audio/bin/python3
-IDLE_TIMEOUT = 10.0
-import subprocess
+DEFAULT_IDLE_TIMEOUT = 10.0
+import re
 from dataclasses import dataclass, field
-from threading import Lock, Thread
+from threading import Lock
 from funasr import AutoModel
 from contextlib import contextmanager
-from typing import Optional
 import numpy as np
 import os
 import sys
@@ -15,9 +13,9 @@ class SharedState:
     mode: str = "IDLE"
     tts_playing: bool = False
     audio_playing: bool = False
-    tts_proc: Optional[subprocess.Popen] = None
     last_user_activity: float = field(default_factory=time.time)
     lock: Lock = field(default_factory=Lock)
+    idle_timeout_sec: float = DEFAULT_IDLE_TIMEOUT
 
     def set_mode(self, mode: str):
         if mode not in ("IDLE", "ACTIVE"):
@@ -44,39 +42,19 @@ class SharedState:
             if self.mode != "ACTIVE" or self.tts_playing:
                 return None
             elapsed = time.time() - float(self.last_user_activity)
-            need_idle = elapsed > IDLE_TIMEOUT
+            need_idle = elapsed > self.idle_timeout_sec
         if need_idle:
-            print(f"[State] No activity for {elapsed:.1f}s (> {IDLE_TIMEOUT}s), back to IDLE.")
+            print(f"[State] No activity for {elapsed:.1f}s (> {self.idle_timeout_sec}s), back to IDLE.")
             self.set_mode("IDLE")  # ✅ 此时不在锁里
             return time.time()
-    def set_tts_playing(self, playing: bool, proc: Optional[subprocess.Popen] = None):
+    def set_tts_playing(self, playing: bool):
         with self.lock:
             self.tts_playing = playing
-            if proc is not None:
-                self.tts_proc = proc
-            elif not playing:
-                self.tts_proc = None
             print(f"[State] tts_playing -> {playing}")
-    def set_audio_playing(self, playing: bool, proc: Optional[subprocess.Popen] = None):
+    def set_audio_playing(self, playing: bool):
         with self.lock:
             self.audio_playing = playing
-            if proc is not None:
-                self.tts_proc = proc
-            elif not playing:
-                self.tts_proc = None
             print(f"[State] audio_playing -> {playing}")
-
-    def stop_tts(self):
-        with self.lock:
-            self._stop_tts_nolock()
-
-    def is_active(self) -> bool:
-        with self.lock:
-            return self.mode == "ACTIVE"
-
-    def is_idle(self) -> bool:
-        with self.lock:
-            return self.mode == "IDLE"
 # ================== Client 控制防抖：WAKE / INTERRUPT 共用 2 秒窗口 ==================
 class ClientControlState:
     """
@@ -122,23 +100,26 @@ def suppress_stdout():
 # ================== FunASR KWS: iic/speech_charctc_kws_phone-xiaoyun ==================
 class XiaoYunKWS:
     """
-    使用 FunASR 的“小云小云”唤醒模型：
+    使用 FunASR 的 CTC-KWS 唤醒模型（关键词为运行时参数，可任意替换）：
       - 模型: iic/speech_charctc_kws_phone-xiaoyun
-      - 默认唤醒词: "小云小云"
+      - 默认唤醒词: "小娟小娟"（经 keywords 参数传入）
     """
 
-    def __init__(self, sample_rate: int = 16000, keyword: str = "小云小云"):
+    DEFAULT_KWS_MODEL = "/home/igraperobot3/Model/speech_charctc_kws_phone-xiaoyun"
+
+    def __init__(self, sample_rate: int = 16000, keyword: str = "小娟小娟",
+                 model_path: str = DEFAULT_KWS_MODEL, device: str = "cuda"):
         self.sample_rate = sample_rate
         self.keyword = keyword
 
-        print("[KWS] Loading FunASR KWS model (xiaoyun)...")
-        # 如果 offline,可将 model 换成本地路径、device 改成 "cuda" 视情况
+        print("[KWS] Loading FunASR KWS model...")
+        # 如果 offline,可将 model 换成本地路径、device 改成 "cpu" 视情况
         self.model = AutoModel(
-            model="/home/igraperobot3/Model/speech_charctc_kws_phone-xiaoyun",
+            model=model_path,
             keywords=keyword,
             disable_update=True,
             output_dir="./outputs/debug",
-            device="cuda",  # KWS 很轻,CPU 即可；如需可改 "cuda"
+            device=device,  # KWS 很轻,CPU 即可；如需可改 "cuda"
         )
         print("[KWS] Model loaded.")
         # 为了降低延迟 + 不让 buffer 无限制增长
@@ -180,7 +161,6 @@ class XiaoYunKWS:
         except Exception as e:
             print(f"[KWS] FunASR generate error: {e}")
             return False
-        import re
         score = 0.0
         detected = False
         try:
@@ -197,7 +177,7 @@ class XiaoYunKWS:
                         score = 0.0
 
                 # 2) 如果没有 score 字段,就从 text 末尾解析浮点数
-                #    你的格式：'detected 小云小云 0.2672964678'
+                #    你的格式：'detected 小娟小娟 0.2672964678'
                 if score == 0.0:
                     m = re.search(r'(-?\d+\.\d+|\d+)(?:\s*)$', text_raw.strip())
                     if m:
@@ -206,7 +186,7 @@ class XiaoYunKWS:
                         except Exception:
                             score = 0.0
 
-                # 3) 判断是否命中 keyword（你的 text 里包含“小云小云”）
+                # 3) 判断是否命中 keyword（你的 text 里包含“小娟小娟”）
                 hit_kw = (self.keyword in text_raw) or (self.keyword in text)
 
                 # 4) 判断 detected

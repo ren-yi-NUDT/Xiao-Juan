@@ -1,0 +1,18 @@
+# Python 3.10 建议；MeloTTS 无 PyPI 包，单独安装：
+#   pip install git+https://github.com/myshell-ai/MeloTTS.git
+openai>=1.0
+numpy
+pyyaml
+pygame>=2.0
+sounddevice
+soundfile
+SpeechRecognition
+pyaudio
+faster-whisper
+funasr
+torch
+cn2an
+rapidfuzz
+langchain-community
+langchain-huggingface
+faiss-cpu

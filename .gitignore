@@ -133,3 +133,6 @@ temp/
 # 如果 MP3 是生成产物而非资源文件，取消下面注释
 # text_to_mp3/output/
 # *.mp3
+
+# funasr 调试输出
+outputs/
