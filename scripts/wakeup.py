@@ -1,5 +1,5 @@
 #!/home/igraperobot3/anaconda3/envs/audio/bin/python3
-IDLE_TIMEOUT = 10.0
+DEFAULT_IDLE_TIMEOUT = 10.0
 import subprocess
 from dataclasses import dataclass, field
 from threading import Lock, Thread
@@ -18,6 +18,7 @@ class SharedState:
     tts_proc: Optional[subprocess.Popen] = None
     last_user_activity: float = field(default_factory=time.time)
     lock: Lock = field(default_factory=Lock)
+    idle_timeout_sec: float = DEFAULT_IDLE_TIMEOUT
 
     def set_mode(self, mode: str):
         if mode not in ("IDLE", "ACTIVE"):
@@ -44,9 +45,9 @@ class SharedState:
             if self.mode != "ACTIVE" or self.tts_playing:
                 return None
             elapsed = time.time() - float(self.last_user_activity)
-            need_idle = elapsed > IDLE_TIMEOUT
+            need_idle = elapsed > self.idle_timeout_sec
         if need_idle:
-            print(f"[State] No activity for {elapsed:.1f}s (> {IDLE_TIMEOUT}s), back to IDLE.")
+            print(f"[State] No activity for {elapsed:.1f}s (> {self.idle_timeout_sec}s), back to IDLE.")
             self.set_mode("IDLE")  # ✅ 此时不在锁里
             return time.time()
     def set_tts_playing(self, playing: bool, proc: Optional[subprocess.Popen] = None):
@@ -127,18 +128,21 @@ class XiaoYunKWS:
       - 默认唤醒词: "小云小云"
     """
 
-    def __init__(self, sample_rate: int = 16000, keyword: str = "小云小云"):
+    DEFAULT_KWS_MODEL = "/home/igraperobot3/Model/speech_charctc_kws_phone-xiaoyun"
+
+    def __init__(self, sample_rate: int = 16000, keyword: str = "小娟小娟",
+                 model_path: str = DEFAULT_KWS_MODEL, device: str = "cuda"):
         self.sample_rate = sample_rate
         self.keyword = keyword
 
-        print("[KWS] Loading FunASR KWS model (xiaoyun)...")
-        # 如果 offline,可将 model 换成本地路径、device 改成 "cuda" 视情况
+        print("[KWS] Loading FunASR KWS model...")
+        # 如果 offline,可将 model 换成本地路径、device 改成 "cpu" 视情况
         self.model = AutoModel(
-            model="/home/igraperobot3/Model/speech_charctc_kws_phone-xiaoyun",
+            model=model_path,
             keywords=keyword,
             disable_update=True,
             output_dir="./outputs/debug",
-            device="cuda",  # KWS 很轻,CPU 即可；如需可改 "cuda"
+            device=device,  # KWS 很轻,CPU 即可；如需可改 "cuda"
         )
         print("[KWS] Model loaded.")
         # 为了降低延迟 + 不让 buffer 无限制增长

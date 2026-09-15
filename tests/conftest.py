@@ -27,6 +27,8 @@ _STUB_SPECS = {
     "melo.api": ["TTS"],
     "speech_recognition": ["Recognizer", "Microphone", "WaitTimeoutError", "AudioData"],
     "audioop": [],
+    "cn2an": ["transform"],
+    "rapidfuzz": [],
     "langchain_community": [],
     "langchain_community.vectorstores": ["FAISS"],
     "langchain_huggingface": ["HuggingFaceEmbeddings"],

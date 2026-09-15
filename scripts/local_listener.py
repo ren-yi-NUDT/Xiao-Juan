@@ -25,7 +25,8 @@ def ignore_stderr():
         os.close(old_stderr)
 
 class VoiceListener:
-    def __init__(self, model_path_or_size="small", device="auto"):
+    def __init__(self, model_path_or_size="small", device="auto",
+                 mic_device_name="Wireless microphone"):
         print(f"🔄 正在加载 Whisper 模型: {model_path_or_size} (Device: {device})...")
         try:
             with ignore_stderr():
@@ -40,7 +41,7 @@ class VoiceListener:
         self.recognizer.dynamic_energy_threshold = False
         self.recognizer.pause_threshold = 0.5
         
-        self.mic_index = self._find_sdd_device_index()
+        self.mic_index = self._find_sdd_device_index(mic_device_name)
         self._calibrate_noise()
 
         self.pya = pyaudio.PyAudio()
@@ -54,11 +55,11 @@ class VoiceListener:
 
         print(f"[Audio] mic_index={self.mic_index}, asr_sr={self.asr_sr}")
 
-    def _find_sdd_device_index(self):
+    def _find_sdd_device_index(self, mic_device_name="Wireless microphone"):
         devices = sd.query_devices()
         device_index=None
         for i, dev in enumerate(devices):
-            if "Wireless microphone" in dev['name']:
+            if mic_device_name in dev['name']:
                 print(f"找到设备: 索引={i}")
                 device_index = i
                 break
