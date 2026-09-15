@@ -1,0 +1,51 @@
+# ==================== LMAM 本地运行配置 ====================
+# 模型路径按部署机器调整；路径不存在时启动会直接报错（--check 除外）。
+
+# ---------- 唤醒（KWS） ----------
+wake_word: "小娟小娟"          # 唤醒词
+kws_model_path: "/home/igraperobot3/Model/speech_charctc_kws_phone-xiaoyun"
+kws_device: "cuda"             # 无 GPU 改 cpu
+kws_rms_gate: 0.01
+
+# ---------- ASR ----------
+asr_model_path: "/home/igraperobot3/Model/faster-whisper-large-v3"
+asr_device: "cuda"             # 无 GPU 改 cpu
+mic_device_name: "Wireless microphone"   # 本机麦克风设备名关键字
+
+# ---------- TTS（MeloTTS，本机扬声器播放） ----------
+tts_config_path: "/home/igraperobot3/Model/melo/ZH/config.json"
+tts_ckpt_path: "/home/igraperobot3/Model/melo/ZH/checkpoint.pth"
+tts_device: "cuda"
+tts_speed: 1.0
+tts_sample_rate: 22050
+
+# ---------- LLM / RAG ----------
+llm_api_base: "http://192.168.3.11:8088/v1"
+embed_model_path: "/home/igraperobot3/Model/BAAI/bge-large-zh-v1.5"
+museum_txt_path: "/home/igraperobot3/Model/BAAI/museum.txt"
+vector_db_path: "/home/igraperobot3/Model/vector_database_faiss/"
+
+# ---------- 会话 / 状态机 ----------
+session_hold_sec: 15.0         # 唤醒一次后的会话保持窗口
+auto_resume_silence_sec: 0.5   # 静默多久自动续播讲解
+resume_check_period: 0.2       # 续播检查周期
+idle_timeout_sec: 10.0         # ACTIVE 静默超时回 IDLE
+only_resume_when_idle: true    # 仅 IDLE 时自动续播
+
+# ---------- 提示语 ----------
+wakeup_prompt: "您好，我在。"
+back_to_idle_prompt: "如果您有任何问题请呼唤两声小娟唤醒我哦。"
+
+# ---------- ASR 文本过滤（出现即丢弃） ----------
+asr_filter_words: ["志愿者", "杨茜茜", "字幕", "转发", "明镜", "观看", "感谢观看", "谢谢", "搅拌"]
+
+# ---------- 展区名映射（占位，之后填） ----------
+landmark_to_name:
+  Landmark1: ""
+  Landmark2: ""
+  Landmark3: ""
+  Landmark4: ""
+  Landmark5: ""
+  Landmark6: ""
+  Landmark7: ""
+  Landmark8: ""
