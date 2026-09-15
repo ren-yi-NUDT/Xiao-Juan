@@ -1,0 +1,3 @@
+batch_text_to_mp3.py 批量文本转语音
+create_faiss_database_vector.py 文本转RAG向量库
+
