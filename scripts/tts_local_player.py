@@ -45,6 +45,8 @@ class TTSLocalPlayer:
                 f"speaker_key='{speaker_key}' not in {list(self.speaker_ids.keys())}")
         self.speaker_id = self.speaker_ids[speaker_key]
         self._stop_flag = threading.Event()
+        # 串行化 speak：melo 推理非线程安全，sd.play 是全局流（原版由 asyncio 串行）
+        self._speak_lock = threading.Lock()
 
     def _run_tts_to_bytes(self, text: str) -> bytes:
         """同步：TTS -> wav bytes（与原实现一致，临时文件放系统临时目录）。"""
@@ -55,19 +57,20 @@ class TTSLocalPlayer:
         return wav_bytes
 
     def speak(self, text: str) -> None:
-        """阻塞式播报；stop() 可打断。"""
+        """阻塞式播报；stop() 可打断。多线程调用时按先后串行播报。"""
         if not text:
             return
-        try:
-            wav_bytes = self._run_tts_to_bytes(text)
-            data, sr = sf.read(io.BytesIO(wav_bytes), dtype="float32")
-            self._stop_flag.clear()
-            sd.play(data, sr)
-            while sd.is_playing() and not self._stop_flag.is_set():
-                time.sleep(0.05)
-            sd.stop()
-        except Exception as e:
-            log.error("[TTSLocalPlayer] speak 失败: %s", e)
+        with self._speak_lock:
+            try:
+                wav_bytes = self._run_tts_to_bytes(text)
+                data, sr = sf.read(io.BytesIO(wav_bytes), dtype="float32")
+                self._stop_flag.clear()
+                sd.play(data, sr)
+                while sd.is_playing() and not self._stop_flag.is_set():
+                    time.sleep(0.05)
+                sd.stop()
+            except Exception as e:
+                log.error("[TTSLocalPlayer] speak 失败: %s", e)
 
     def stop(self) -> None:
         self._stop_flag.set()

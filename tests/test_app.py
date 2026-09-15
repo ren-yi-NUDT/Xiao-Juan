@@ -131,3 +131,54 @@ def test_resume_check_skip_when_active():
     app.last_activity_ts = _time.time() - 10.0
     app._resume_check()                   # mode==ACTIVE，且 only_resume_when_idle
     assert player.actions == []
+
+
+# ===== 回归：唤醒打断必须走 pause（断点续播），而非 interrupt（review C1/C2） =====
+
+def test_on_wake_pauses_player_and_sets_guide_paused():
+    app, _, tts, player = _make_app()
+    app.shared_state.set_mode("IDLE")
+    app.shared_state.set_audio_playing(True, None)
+    app._on_wake()
+    assert ("pause",) in player.actions           # 断点保留，可 resume
+    assert ("interrupt",) not in player.actions   # interrupt 会丢断点位置
+    assert app.guide_paused is True               # 自动续播的唯一开关
+    assert app.shared_state.audio_playing is False
+    assert app.shared_state.mode == "ACTIVE"
+    assert tts.stops >= 1                         # TTS 打断照旧
+
+
+def test_on_wake_without_audio_skips_pause():
+    app, _, _, player = _make_app()
+    app.shared_state.set_mode("IDLE")             # 无 mp3 在播
+    app._on_wake()
+    assert player.actions == []
+    assert app.guide_paused is False
+    assert app.shared_state.mode == "ACTIVE"
+
+
+# ===== 回归：TTS 播完必须清 tts_playing 并按原 /tts_playing=False 语义驱动状态机 =====
+
+def test_handle_text_clears_tts_playing_and_stays_active():
+    app, _, _, _ = _make_app()
+    app._handle_text("带我去序厅")
+    assert app.shared_state.tts_playing is False  # 不清除则后续轮次全部饿死
+    assert app.shared_state.mode == "ACTIVE"      # 多轮：答完不需要再唤醒
+
+
+def test_backto_idle_prompt_keeps_idle():
+    app, _, _, _ = _make_app()
+    app._play_backtoIDLE_prompt(app.cfg.back_to_idle_prompt)
+    assert app.shared_state.tts_playing is False
+    assert app.shared_state.mode == "IDLE"        # 回 IDLE 提示语后不重新激活
+
+
+def test_auto_resume_clears_tts_playing_and_keeps_idle():
+    app, _, _, player = _make_app()
+    app.shared_state.set_mode("IDLE")
+    app.guide_paused = True
+    app._auto_resume_mp3_once()
+    assert app.shared_state.tts_playing is False
+    assert app.shared_state.audio_playing is True
+    assert app.shared_state.mode == "IDLE"        # mp3 播放中保持 IDLE，可被唤醒打断
+    assert app.guide_paused is False

@@ -45,6 +45,7 @@ class FakePlayerModule:
 def _make_player():
     player = tl.TTSLocalPlayer.__new__(tl.TTSLocalPlayer)  # 跳过 melo 加载
     player._stop_flag = tl.threading.Event()
+    player._speak_lock = tl.threading.Lock()
     return player
 
 

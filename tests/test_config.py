@@ -8,8 +8,28 @@ from scripts.config import load_config
 MINIMAL_YAML = textwrap.dedent("""
     wake_word: "小娟小娟"
     kws_model_path: "{tmp}/kws"
+    kws_device: "cpu"
+    kws_rms_gate: 0.01
     asr_model_path: "{tmp}/asr"
+    asr_device: "cpu"
+    mic_device_name: "test-mic"
     llm_api_base: "http://127.0.0.1:8088/v1"
+    embed_model_path: ""
+    museum_txt_path: ""
+    vector_db_path: ""
+    tts_config_path: ""
+    tts_ckpt_path: ""
+    tts_device: "cpu"
+    tts_speed: 1.0
+    tts_sample_rate: 22050
+    session_hold_sec: 15.0
+    auto_resume_silence_sec: 0.5
+    resume_check_period: 0.2
+    only_resume_when_idle: true
+    idle_timeout_sec: 10.0
+    wakeup_prompt: "您好，我在。"
+    back_to_idle_prompt: "回IDLE"
+    asr_filter_words: []
 """)
 
 

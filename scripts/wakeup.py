@@ -1,4 +1,3 @@
-#!/home/igraperobot3/anaconda3/envs/audio/bin/python3
 DEFAULT_IDLE_TIMEOUT = 10.0
 import subprocess
 from dataclasses import dataclass, field

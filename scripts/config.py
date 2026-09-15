@@ -7,9 +7,21 @@ import yaml
 DEFAULT_CONFIG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.yaml")
 
-# 必填键：缺失即拒绝启动
+# 必填键：缺失即拒绝启动（app 以属性方式访问这些键，缺失会在构建中途才 AttributeError）
 REQUIRED_KEYS = (
-    "wake_word", "kws_model_path", "asr_model_path", "llm_api_base",
+    # KWS / 唤醒
+    "wake_word", "kws_model_path", "kws_device", "kws_rms_gate",
+    # ASR
+    "asr_model_path", "asr_device", "mic_device_name",
+    # LLM / RAG
+    "llm_api_base", "embed_model_path", "museum_txt_path", "vector_db_path",
+    # TTS
+    "tts_config_path", "tts_ckpt_path", "tts_device", "tts_speed", "tts_sample_rate",
+    # 会话 / 状态机
+    "session_hold_sec", "auto_resume_silence_sec", "resume_check_period",
+    "only_resume_when_idle", "idle_timeout_sec",
+    # 提示语 / 过滤
+    "wakeup_prompt", "back_to_idle_prompt", "asr_filter_words",
 )
 # 需要存在性检查的模型/数据路径
 PATH_KEYS = (
