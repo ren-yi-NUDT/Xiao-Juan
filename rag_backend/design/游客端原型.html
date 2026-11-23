@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>景区智搜 · 游客端原型</title>
+<style>
+  :root{
+    --primary:#1677FF;--primary-dk:#0958D9;--primary-bg:#E6F4FF;
+    --bg:#F5F7FA;--panel:#fff;--border:#EEF0F3;--border2:#DCE0E6;
+    --text:#23272E;--text2:#5B6470;--text3:#98A2AE;
+    --green:#52C41A;--green-bg:#F6FFED;--orange:#FA8C16;--orange-bg:#FFF7E6;
+    --hei:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+    --mono:Consolas,"Courier New",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{background:var(--bg);color:var(--text);font-family:var(--hei);font-size:15px;line-height:1.7}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  /* ---------- 顶部导航 ---------- */
+  .nav{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--border);height:58px;display:flex;align-items:center;gap:26px;padding:0 28px}
+  .brand{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:700;letter-spacing:1px}
+  .brand i{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#1677FF,#5AA0FF);display:inline-block}
+  .nav-links{display:flex;gap:6px}
+  .nav-links a{color:var(--text2);text-decoration:none;font-size:14.5px;padding:7px 14px;border-radius:8px}
+  .nav-links a:hover{background:var(--bg);color:var(--text)}
+  .nav-links a.on{color:var(--primary);background:var(--primary-bg);font-weight:600}
+  .nav-right{margin-left:auto;display:flex;gap:12px;align-items:center}
+  .btn{border-radius:8px;font-size:14px;padding:8px 16px;transition:filter .15s}
+  .btn:hover{filter:brightness(.96)}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-ghost{background:#fff;border:1px solid var(--border2);color:var(--text2)}
+  /* ---------- 景区选择页 ---------- */
+  .home{max-width:920px;margin:0 auto;padding:54px 10px 30px;text-align:center}
+  .home h1{font-size:26px;letter-spacing:3px}
+  .home .hsub{color:var(--text3);font-size:13.5px;margin:8px 0 34px}
+  .area-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;text-align:left}
+  @media (max-width:820px){.area-grid{grid-template-columns:1fr}}
+  .area-card{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:box-shadow .18s,border-color .18s}
+  .area-card:hover{box-shadow:0 8px 22px rgba(35,60,90,.12);border-color:#BBD6FF}
+  .area-card .thumb{height:104px;display:flex;align-items:flex-end;padding:14px 18px;color:#fff}
+  .area-card .thumb b{font-size:20px;letter-spacing:3px}
+  .area-card .abody{padding:15px 18px 18px}
+  .area-card .ameta{font-size:12.5px;color:var(--text3);margin-top:4px}
+  .abtn{width:100%;margin-top:13px;border-radius:8px;padding:8px 0;background:var(--primary);color:#fff;font-size:14px;font-family:inherit}
+  .abtn:hover{filter:brightness(.95)}
+  .area-card.ghost{border-style:dashed;border-color:var(--border2);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:236px;color:var(--text3);cursor:default}
+  .area-card.ghost:hover{box-shadow:none;border-color:var(--border2)}
+  .area-card.ghost .plus{font-size:28px;line-height:1;margin-bottom:10px;color:var(--border2)}
+  .area-chip{display:none;align-items:center;gap:6px;background:var(--primary-bg);border:1px solid #91CAFF;color:var(--primary-dk);border-radius:16px;padding:4px 13px;font-size:13px;cursor:pointer}
+  .area-chip:hover{background:#D6E9FF}
+  /* ---------- 页面容器 ---------- */
+  .page{max-width:1060px;margin:0 auto;padding:26px 24px 60px;display:none}
+  .page.show{display:block;animation:fadein .18s ease}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.page.show{animation:none}}
+  .crumb{font-size:13px;color:var(--text3);margin-bottom:14px}
+  .crumb a{color:var(--text3)}
+  /* ---------- AI 导游页 ---------- */
+  .chat-wrap{max-width:760px;margin:0 auto}
+  .chat-head{text-align:center;padding:6px 0 14px}
+  .chat-head h1{font-size:22px;letter-spacing:1px}
+  .chat-head p{font-size:13px;color:var(--text3);margin-top:4px}
+  .model-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;font-size:12.5px}
+  .chip{border:1px solid var(--border2);border-radius:16px;padding:4px 14px;color:var(--text2);background:#fff}
+  .chip.on{border-color:var(--primary);color:var(--primary);background:var(--primary-bg);font-weight:600}
+  .chat-box{background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;min-height:380px;display:flex;flex-direction:column;gap:14px}
+  .msg{max-width:82%;padding:11px 15px;border-radius:12px;font-size:14.5px}
+  .msg.bot{background:var(--bg);align-self:flex-start;border-top-left-radius:4px}
+  .msg.me{background:var(--primary);color:#fff;align-self:flex-end;border-top-right-radius:4px}
+  .msg .quote{border-left:3px solid var(--primary);background:#fff;border-radius:6px;padding:8px 12px;margin-top:9px;font-size:12.5px;color:var(--text2)}
+  .msg .quote .qt{font-weight:600;color:var(--text);margin-bottom:2px}
+  .cite{display:inline-block;font-size:11.5px;color:var(--primary);background:var(--primary-bg);border:1px solid #91CAFF;border-radius:5px;padding:0 7px;margin:8px 6px 0 0}
+  .cite:hover{background:#D6E9FF}
+  .msg-acts{align-self:flex-start;font-size:12px;color:var(--text3);margin-top:-6px;padding-left:4px}
+  .msg-acts button{color:var(--text3);margin-right:12px}
+  .msg-acts button:hover{color:var(--primary)}
+  .typing{align-self:flex-start;background:var(--bg);border-radius:12px;padding:11px 16px;color:var(--text3);font-size:13px}
+  .typing i{font-style:normal;animation:blink 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+  .sugs{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;justify-content:center}
+  .sug{border:1px solid var(--border2);background:#fff;border-radius:18px;padding:6px 15px;font-size:13px;color:var(--text2)}
+  .sug:hover{border-color:var(--primary);color:var(--primary)}
+  .chat-input{display:flex;gap:10px;margin-top:14px}
+  .chat-input input{flex:1;border:1.5px solid var(--border2);border-radius:10px;padding:11px 16px;font-size:14.5px;font-family:inherit;outline:none}
+  .chat-input input:focus{border-color:var(--primary)}
+  /* ---------- 检索页 ---------- */
+  .search-bar{display:flex;gap:10px;max-width:640px;margin:6px auto 8px}
+  .search-bar input{flex:1;border:1.5px solid var(--primary);border-radius:10px;padding:12px 16px;font-size:15px;font-family:inherit;outline:none;box-shadow:0 2px 8px rgba(22,119,255,.10)}
+  .search-meta{text-align:center;font-size:13px;color:var(--text3);margin-bottom:16px}
+  .result{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px;transition:border-color .15s}
+  .result:hover{border-color:#BBD6FF}
+  .result .rt{font-size:15.5px;font-weight:600;margin-bottom:3px}
+  .result .rs{font-size:13.5px;color:var(--text2)}
+  .result mark{background:#FFF1B8;padding:0 1px}
+  .result .rmeta{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .src-tag{display:inline-block;font-size:11.5px;border-radius:5px;padding:1px 8px}
+  .src-green{color:#389E0D;background:var(--green-bg);border:1px solid #B7EB8F}
+  .src-orange{color:#D46B08;background:var(--orange-bg);border:1px solid #FFD591}
+  .rel{margin-left:auto;font-size:12px;color:var(--text3);display:flex;align-items:center;gap:7px}
+  .rel .bar{width:70px;height:5px;border-radius:3px;background:var(--border);overflow:hidden}
+  .rel .bar i{display:block;height:100%;background:linear-gradient(90deg,#5AA0FF,#1677FF);border-radius:3px}
+  /* ---------- 景点导览 ---------- */
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .count{font-size:13px;color:var(--text3);margin-bottom:14px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media (max-width:860px){.cards{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:580px){.cards{grid-template-columns:1fr}}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:box-shadow .18s,border-color .18s;cursor:pointer}
+  .card:hover{box-shadow:0 6px 18px rgba(35,60,90,.10);border-color:#BBD6FF}
+  .card .thumb{height:96px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:21px;font-weight:600;letter-spacing:3px}
+  .card .cbody{padding:13px 16px 15px}
+  .card .cname{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .card .cid{font-family:var(--mono);font-size:11px;color:var(--text3);background:var(--bg);border-radius:4px;padding:0 6px}
+  .card .cdesc{font-size:13px;color:var(--text2);margin-top:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card .copen{font-size:12px;color:var(--text3);margin-top:8px}
+  .th0{background:linear-gradient(135deg,#4C87D6,#7FB3E8)}.th1{background:linear-gradient(135deg,#5AA0FF,#8CC1FF)}
+  .th2{background:linear-gradient(135deg,#48A57C,#7CC9A5)}.th3{background:linear-gradient(135deg,#D69A4C,#E8C07F)}
+  .th4{background:linear-gradient(135deg,#7C6FD6,#A79DE8)}.th5{background:linear-gradient(135deg,#D66F6F,#E89C9C)}
+  /* ---------- 景点详情 ---------- */
+  .detail{display:grid;grid-template-columns:1.8fr 1fr;gap:20px}
+  @media (max-width:820px){.detail{grid-template-columns:1fr}}
+  .d-main{background:#fff;border:1px solid var(--border);border-radius:14px;padding:26px 28px}
+  .d-hero{height:150px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;margin-bottom:18px}
+  .d-hero span{font-size:30px;font-weight:700;letter-spacing:8px}
+  .d-title{font-size:23px;font-weight:700;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .d-sub{font-size:13px;color:var(--text3);margin:4px 0 16px}
+  .field{display:flex;border-top:1px dashed var(--border);padding:10px 2px;gap:14px;font-size:14px}
+  .field .k{flex:0 0 108px;color:var(--text3)}
+  .field .v{color:var(--text2)}
+  .d-side{display:flex;flex-direction:column;gap:16px}
+  .side-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;font-size:13.5px}
+  .side-card h4{font-size:14px;margin-bottom:8px}
+  .side-card p{color:var(--text2);font-size:13px}
+  .side-card .btn{width:100%;margin-top:10px}
+  /* ---------- 弹窗 / 提示 ---------- */
+  .modal-mask{position:fixed;inset:0;background:rgba(15,25,40,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal-mask.show{display:flex}
+  .modal{background:#fff;border-radius:14px;max-width:560px;width:100%;padding:26px 28px;max-height:86vh;overflow:auto}
+  .modal h3{font-size:18px;margin-bottom:4px}
+  .modal .msub{font-size:13px;color:var(--text3);margin-bottom:16px}
+  .mstep{display:flex;gap:12px;padding:11px 0;border-top:1px dashed var(--border);font-size:14px}
+  .mstep i{font-style:normal;flex:0 0 22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;text-align:center;line-height:22px;font-size:12px}
+  .mstep b{display:block;font-size:14px}
+  .mstep p{font-size:12.5px;color:var(--text3)}
+  .tools{background:var(--bg);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:12.5px;color:var(--text2)}
+  .tools code{font-family:var(--mono);background:#fff;border:1px solid var(--border2);border-radius:4px;padding:0 5px;color:var(--primary-dk);margin:2px 4px 2px 0;display:inline-block}
+  .toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:#fff;border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(20,40,70,.16);padding:11px 22px;font-size:13.5px;display:none;z-index:60}
+  .toast.show{display:block;animation:fadein .2s ease}
+  .footer{max-width:1060px;margin:0 auto;padding:0 24px 34px;font-size:12px;color:var(--text3);text-align:center}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="brand"><i></i>景区智搜</span>
+  <span class="area-chip" id="areaChip" onclick="go('#/home')" title="切换景区"></span>
+  <div class="nav-links">
+    <a href="#/chat" data-nav="chat">AI 导游</a>
+    <a href="#/search" data-nav="search">知识检索</a>
+    <a href="#/scenic" data-nav="scenic">景点导览</a>
+  </div>
+  <div class="nav-right">
+    <button class="btn btn-ghost" onclick="openConnect()">把豆包变灵山导游</button>
+    <button class="btn btn-primary" onclick="go('#/chat')">开始提问</button>
+  </div>
+</nav>
+
+<!-- ============ 景区选择页 ============ -->
+<section class="page" id="page-home">
+  <div class="home">
+    <h1>选择要游览的景区</h1>
+    <p class="hsub">系统按景区组织知识库：新景区的资料经管理端入库后，会自动出现在这里</p>
+    <div class="area-grid" id="areaGrid"></div>
+  </div>
+</section>
+
+<!-- ============ AI 导游页 ============ -->
+<section class="page" id="page-chat">
+  <div class="chat-wrap">
+    <div class="chat-head">
+      <h1>灵山 AI 导游</h1>
+      <p>答案全部来自景区官方资料库，每条可点开核对来源</p>
+    </div>
+    <div class="model-bar">
+      模型：<span class="chip on" data-model>内置（豆包 API）</span>
+      <span class="chip" data-model>本地 Ollama</span>
+      <span class="chip" data-model>填我自己的 Key</span>
+    </div>
+    <div class="chat-box" id="chatBox">
+      <div class="msg bot">你好，我是灵山 AI 导游。关于灵山胜境与拈花湾的任何问题——景点、演出场次、游览路线——都可以问我。我的每个回答都来自景区资料库，并附来源。</div>
+    </div>
+    <div class="sugs">
+      <button class="sug" onclick="ask('带老人半天怎么逛灵山？')">带老人半天怎么逛灵山？</button>
+      <button class="sug" onclick="ask('九龙灌浴今天几点开演？')">九龙灌浴今天几点开演？</button>
+      <button class="sug" onclick="ask('梵宫《吉祥颂》今天几场？')">梵宫《吉祥颂》今天几场？</button>
+      <button class="sug" onclick="ask('门票多少钱？')">门票多少钱？</button>
+    </div>
+    <div class="chat-input">
+      <input id="chatInput" placeholder="输入你的问题，回车发送…" onkeydown="if(event.key==='Enter')send()">
+      <button class="btn btn-primary" onclick="send()">发送</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 检索页 ============ -->
+<section class="page" id="page-search">
+  <div class="search-bar">
+    <input id="searchInput" placeholder="试试口语化的问法：带老人 半天 怎么逛" onkeydown="if(event.key==='Enter')doSearch()">
+    <button class="btn btn-primary" onclick="doSearch()">语义检索</button>
+  </div>
+  <div class="search-meta" id="searchMeta"></div>
+  <div id="resultList"></div>
+</section>
+
+<!-- ============ 景点导览 ============ -->
+<section class="page" id="page-scenic">
+  <div class="crumb">景点导览</div>
+  <div class="filters" id="filters">
+    <button class="chip on" data-f="all">全部</button>
+    <button class="chip" data-f="LS">胜境板块</button>
+    <button class="chip" data-f="NH">拈花湾板块</button>
+  </div>
+  <div class="count" id="cardCount"></div>
+  <div class="cards" id="cardGrid"></div>
+</section>
+
+<!-- ============ 景点详情 ============ -->
+<section class="page" id="page-detail">
+  <div class="crumb"><a href="#/scenic">景点导览</a> / <span id="dCrumb"></span></div>
+  <div class="detail">
+    <div class="d-main">
+      <div class="d-hero" id="dHero"><span id="dName"></span></div>
+      <div class="d-title"><span id="dName2"></span><span class="cid" id="dId" style="font-family:var(--mono);font-size:12px;color:var(--text3);background:var(--bg);border-radius:4px;padding:1px 8px"></span></div>
+      <div class="d-sub" id="dSub"></div>
+      <div id="dFields"></div>
+    </div>
+    <div class="d-side">
+      <div class="side-card">
+        <h4>本页数据来源</h4>
+        <p>《灵山胜境 景点结构化数据集》<br><span id="dSrcId"></span> 全部 11 个结构化字段</p>
+      </div>
+      <div class="side-card">
+        <h4>继续了解</h4>
+        <p style="margin-bottom:4px">本页数据同时是 AI 导游与豆包回答本景点问题的依据。</p>
+        <button class="btn btn-primary" id="dAskBtn">问 AI 导游关于本景点</button>
+        <button class="btn btn-ghost" onclick="openConnect()">在豆包中打开</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">景区智搜 · 游客端交互原型 —— 数据来自《灵山胜境 景点结构化数据集》真实资料 · 2026-10</footer>
+
+<!-- 接入豆包弹窗 -->
+<div class="modal-mask" id="connectMask" onclick="if(event.target===this)closeConnect()">
+  <div class="modal">
+    <h3>把豆包变成灵山专业导游</h3>
+    <p class="msub">本系统对 AI 开放 MCP 接口：三步接入，豆包即可检索景区知识库回答问题。</p>
+    <div class="mstep"><i>1</i><div><b>复制本系统网址</b><p>mcp://lingshan.example/sse</p></div></div>
+    <div class="mstep"><i>2</i><div><b>添加到豆包</b><p>豆包 → 设置 → MCP 工具 → 添加，粘贴网址</p></div></div>
+    <div class="mstep"><i>3</i><div><b>开聊</b><p>问豆包任何灵山问题，它已"持证上岗"</p></div></div>
+    <div class="tools">豆包获得的工具：<code>search_knowledge(q)</code><code>get_attraction(id)</code><code>get_performances(date)</code><code>plan_route(prefs)</code></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="copyUrl()">复制 MCP 网址</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ 景点数据（来自景点结构化数据集.docx） ============ */
+const ATTRACTIONS = [{"id": "LS-001", "name": "灵山大照壁", "loc": "景区入口处，面朝太湖，背靠景区核心区域，是进入灵山胜境的第一道视觉屏障与景观节点。", "param": "长39.8m，高7m，采用优质青石雕刻而成，被誉为“华夏第一壁”，整体造型恢弘大气，细节雕刻精美。", "func": "景区标志性门户、文化序章，承担迎宾、文化展示功能，为游客开启禅意之旅的序", "culture": "照壁采用优质青石精心雕刻，表面打磨光滑，纹理细腻，正面鎏金大字由赵朴初先生题写，笔力遒劲，鎏金工艺让字体在阳光下熠熠生辉。北立面", "hl": "打卡合影，拍摄湖光壁影同框美景；细细解读诗刻文化，感受赵朴初先生的书法魅力与禅意情怀；作为景区首处景观，", "open": "全天开放，无时间限制，适合各类时段入园游客观赏、打卡，不受景区内部演艺时间影响。"}, {"id": "LS-002", "name": "五明桥", "loc": "大照壁北侧，横跨香水海，连接景区入口区域与核心朝圣区域，是进入核心景区的必经之路。", "param": "5座石拱桥并列排布，间距均匀，桥身采用汉白玉雕刻而成，桥面与桥栏均刻有精美佛教图案，造型规整大气。", "func": "佛教智慧象征、通行步道，既是连接不同区域的交通载体，也是传递佛教智慧、营", "culture": "五座石桥形态规整、气势统一，桥面平整宽阔，桥栏由优质汉白玉打造，质地细腻，上面雕刻着莲花、飞天、神兽等精美佛教图案，线条流畅、栩", "hl": "漫步过桥，在行走中体悟五明智慧的内涵；拍摄石桥与香水海的倒影同框美景，感受水与建筑的禅意融合；桥面宽阔平", "open": "全天开放，无时间限制，免费向所有游客开放通行，不受天气及景区演艺活动影响。"}, {"id": "LS-003", "name": "佛足坛", "loc": "五明桥北侧，菩提大道起点，处于景区中轴线之上，与后方的五智门、灵山大佛遥相呼应，是核心朝圣节", "param": "巨型佛足印一对，左右对称摆放，每只足印长1.2m，宽0.6m，采用整块青铜铸造而成，表面经过特殊防腐处理，色泽", "func": "祈福朝圣、佛教象征，是佛教徒朝拜的核心点位，也是游客感受佛教圣迹、寄托祈", "culture": "佛足坛由整块青铜精心铸造，采用古法铸造工艺，表面光滑细腻，完美呈现出佛祖脚印的32种吉祥瑞相，每一处纹路都清晰可辨，是佛教徒千百", "hl": "瞻仰佛足，亲手触摸足心吉祥图案，寄托祈福心愿；细细解读32种吉祥瑞相的寓意，了解佛教文化内涵；与佛足坛合", "open": "全天开放，无时间限制，适合游客随时驻足瞻仰、祈福，周边设有休息区域，方便游客停留观赏。"}, {"id": "LS-004", "name": "五智门", "loc": "佛足坛北侧，核心景区入口处，矗立在景区中轴线上，是区分景区外围区域与核心朝圣区域的重要标志。", "param": "高16.8m，宽35m，为五门六柱石牌坊造型，整体采用优质汉白玉雕刻而成，牌坊顶部雕刻精美，气势恢宏壮观。", "func": "核心景区门户、智慧象征，承担着划分景区区域、传递佛教智慧、营造庄严肃穆氛", "culture": "五智门由优质汉白玉精雕细琢而成，雕刻工艺精湛绝伦，门柱上雕刻着佛教六度智慧的相关经文，字体工整、苍劲有力；门楣处饰有飞天、神兽、", "hl": "穿门祈福，感受佛教建筑的恢弘气势；拍摄牌坊全景，搭配蓝天绿树背景，定格庄严肃穆的禅意画面；解读门柱经文与", "open": "全天开放，无时间限制，无论白天黑夜，都能感受其庄严气势，夜间有灯光点缀，更具氛围感。"}, {"id": "LS-005", "name": "菩提大道", "loc": "五智门北侧，直通九龙灌浴广场，贯穿景区中轴线核心路段，两侧绿植繁茂，是连接五智门与核心景观的", "param": "长约250m，宽约10m，路面采用防滑耐磨的特殊材料铺设，四季常绿；两侧对称种植近百棵从印度引进的正宗菩提树，", "func": "朝圣步道、禅意景观，既是游客前往核心景观的通行通道，也是营造禅意氛围、引", "culture": "菩提大道两侧的菩提树均为从印度引进的正宗树种，树形挺拔、枝叶繁茂，树枝交错缠绕，形成天然的禅意拱廊，遮挡烈日的同时，也增添了静谧", "hl": "漫步林荫拱廊，感受禅意清幽，聆听菩提叶作响的自然之声；春季菩提花开时，可观赏洁白的菩提花，定格绝美瞬间；", "open": "全天开放，无时间限制，四季景致各异，春季赏菩提花、夏季避酷暑、秋季观落叶、冬季赏绿意，适合各类时段游览。"}, {"id": "LS-006", "name": "九龙灌浴", "loc": "菩提大道北端，景区中轴线核心位置，是灵山胜境最具标志性的动态景观，周边设有开阔的观赏广场。", "param": "总高27.2m，核心为鎏金太子佛，高7.2m，重12吨，整体耗铜量达180吨；太子佛周围环绕9组72只凤凰雕塑", "func": "动态景观、佛教诞生故事演绎，核心展示释迦牟尼诞生的祥瑞场景，兼具观赏、科", "culture": "大型音乐动态群雕由莲花铜雕、九条飞龙、八名供养人等核心元素组成，莲花底座由四个大力士造型雕塑托起，底部是圆形大理石水池，池水清澈", "hl": "观赏动态喷泉表演，感受“花开见佛”的震撼场景；表演结束后，可在广场两侧接取龙头流出的“圣水”，寓意祈福安", "open": "平日演出时间为10:00、11:30、13:30、15:00；周末及节假日增加演出场次（具体以景区广播通知为准"}, {"id": "LS-007", "name": "降魔浮雕", "loc": "九龙灌浴北侧，阿育王柱前方，紧贴景区中轴线，两侧设有观赏步道，是连接九龙灌浴与阿育王柱的重要", "param": "长26m，高4.6m的巨型石雕，采用整块优质花岗岩雕刻而成，浮雕厚度均匀，雕刻深度适中，立体感极强。", "func": "佛教故事展示、艺术景观，核心用于科普佛教文化，展示佛陀成道的艰辛历程，兼", "culture": "浮雕采用高浮雕与浅浮雕相结合的精湛手法，分层刻画场景，层次感十足。浮雕中央，佛陀端坐于菩提树下，神情坚定、目光如炬，尽显佛法的无", "hl": "观赏精湛的浮雕艺术，感受佛教雕刻的魅力；聆听佛陀降魔成道的故事，深入理解佛教禅理；寻找浮雕中的细节，分辨", "open": "全天开放，无时间限制，浮雕前设有防护设施，方便游客观赏、拍照，不受天气影响。"}, {"id": "LS-008", "name": "阿育王柱", "loc": "降魔浮雕北侧，祥符禅寺正前方，矗立在景区中轴线之上，与灵山大佛、五智门形成一条直线，庄严肃穆", "param": "通高16.9m，直径1.8m，总重量达180吨，采用整块优质花岗岩一次性雕刻而成，柱头雕刻四头朝向不同方向的狮", "func": "佛教文化象征、地标景观，核心用于传递佛教和平精神，纪念佛法东传的历史，兼", "culture": "阿育王柱由整块优质花岗岩精心雕刻而成，雕刻工艺精湛，柱身表面打磨光滑，刻有“阿育王柱”四个大字及相关梵文经文，字体工整、苍劲有力", "hl": "瞻仰巨型石柱，感受其威严气势；拍摄四狮柱头的精美细节，了解其象征意义；聆听阿育王弘扬佛法的故事，深入了解", "open": "全天开放，无时间限制，石柱周边设有开阔的观赏区域，方便游客观赏、拍照，不受天气及景区演艺活动影响。"}, {"id": "LS-009", "name": "百子戏弥勒", "loc": "阿育王柱与祥符禅寺之间，处于景区中轴线旁侧，周边设有休息座椅，是游客驻足祈福、拍照的热门点位", "param": "高3m，宽7.8m，总重量达9吨的青铜群雕，弥勒佛呈卧姿，袒胸露腹、笑容满面，身上塑有百名嬉戏的孩童，形态各异", "func": "祈福景观、民俗文化展示，核心用于传递欢喜、包容的理念，满足游客祈福心愿，", "culture": "青铜群雕采用优质青铜铸造，经过特殊防腐处理，色泽温润，造型精美。群雕中，弥勒佛呈舒适的卧姿，袒胸露腹，嘴角上扬，笑容憨厚可掬，尽", "hl": "触摸弥勒佛的肚皮，寓意“摸弥勒肚皮，享一生福气”，寄托顺遂安康的心愿；寻找百名孩童的不同姿态，感受民间艺", "open": "全天开放，无时间限制，群雕前无遮挡，方便游客观赏、触摸、拍照，周边设有休息区域，适合驻足停留。"}, {"id": "LS-010", "name": "祥符禅寺", "loc": "灵山胜境中轴核心，灵山大佛基座之下，四周绿树环绕，环境清幽，是景区内历史最悠久的人文景观。", "param": "唐代古刹，占地约30亩，整体采用仿唐重檐歇山式建筑风格，布局完整，包含弥勒殿、大雄宝殿、钟楼、鼓楼，寺内还有六", "func": "宗教活动开展、千年古刹瞻仰，核心用于佛教信徒礼佛祈福，同时展示江南禅宗文", "culture": "祥符禅寺布局严谨、错落有致，整体采用仿唐重檐歇山式建筑风格，红墙黛瓦、飞檐翘角，尽显唐代古建的庄严与恢弘。大雄宝殿内供奉着释迦牟", "hl": "礼佛祈福，虔诚朝拜，寄托美好心愿；聆听祥符禅钟的浑厚钟声，感受禅意悠远；观赏唐代古建与千年历史遗迹，秋季", "open": "全天开放，宗教活动正常开展；钟楼定时有钟声表演，具体时间以景区广播通知为准，寺内禁止大声喧哗，需保持庄严肃穆。"}, {"id": "LS-011", "name": "灵山大佛", "loc": "祥符禅寺北侧，秦履峰南侧，矗立在景区最高处，是整个灵山胜境的核心地标，可俯瞰整个景区及太湖风", "param": "佛像高88m（主体高度79m+莲花瓣高度9m），含台基总高101.5m，耗铜量达725吨，由2000块铸铜面板", "func": "", "culture": "", "hl": "", "open": ""}, {"id": "LS-012", "name": "佛教文化博览馆", "loc": "灵山大佛座基内，共三层结构，每层功能不同，布局合理，是灵山博物馆的核心展区，地理位置便利，方", "param": "总建筑面积达10000㎡，为三层框架结构，层高均超4米，空间开阔通透；一层展示五方五佛与佛教四大名山文化，二层", "func": "佛教文化展示、科普教育，核心用于展示佛教历史、文化内涵与艺术成果，兼具科", "culture": "佛教文化博览馆设于灵山大佛三层座基内，是灵山博物馆的核心组成部分，整体装修融合佛教元素与现代设计理念，恢弘大气且充满禅意。一层展", "hl": "体验智能导览，深入了解佛教历史与四大名山文化；在二层互动区参与佛法东传知识问答，解锁趣味科普内容；在三层", "open": "随灵山大佛开放时间同步运营（8:00-17:00），冬季闭馆时间提前至16:30；馆内设有免费讲解服务，讲解时"}, {"id": "LS-013", "name": "灵山梵宫", "loc": "灵山胜境西侧，香水海之畔，与五印坛城隔湖相望，背靠秦履峰余脉，地势开阔，是景区内建筑规模最大", "param": "建筑面积达72000㎡，最高处66.5米，整体呈“莲花环抱”之势，拥有五座错落分布的莲花圣塔；建筑主体采用钢混", "func": "佛教艺术殿堂、国际佛事活动举办地，核心用于展示佛教艺术瑰宝，举办世界佛教", "culture": "灵山梵宫于2008年建成，凭借其极致的艺术价值与恢弘的建筑规模，被誉为“东方卢浮宫”。建筑外立面以米黄色石材为基底，雕刻着莲花、", "hl": "观赏东阳木雕、琉璃、油画等非遗艺术瑰宝，感受传统工艺的精湛；在中庭仰望星空穹顶，体验“置身佛国”的奇幻意", "open": "9:00-17:00开放，冬季闭馆时间提前至16:30；《灵山吉祥颂》演出时间为10:35、11:30、14:"}, {"id": "LS-014", "name": "五印坛城", "loc": "香水海中央的独立圆岛上，灵山梵宫南侧，通过景观栈道与梵宫相连，四面环水，环境清幽，藏式建筑风", "param": "五层重檐楼宇，总高约30米，占地5000㎡，整体采用藏式碉楼建筑风格，白墙红边金顶，墙体采用花岗岩砌筑，屋顶覆", "func": "藏传佛教文化展示中心、禅意祈福场所，核心用于展示藏传佛教的历史、艺术与文", "culture": "五印坛城以西藏拉萨布达拉宫雪村大门为原型设计山门，门楣处雕刻着藏文经文与吉祥八宝图案，气势庄严。整座建筑白墙如练，红边勾勒出建筑", "hl": "体验藏传佛教文化，参观藏式建筑与唐卡展厅；顺时针转动转经筒，寄托祈福安康的心愿；登至五层顶层观景台，俯瞰", "open": "9:00-17:00开放，冬季闭馆时间提前至16:30；转经筒长廊全天开放，藏香制作体验需提前在景区小程序预约"}, {"id": "LS-015", "name": "曼飞龙塔", "loc": "五印坛城北侧，香水海北岸的景观绿地上，与五印坛城隔岸相望，背靠灵山梵宫，处于佛教三大语系建筑", "param": "主塔高16.9m，底部为直径10米的圆形须弥座，由一座主塔和八座高约8米的小塔组成九塔组合；塔身以白色花岗岩为", "func": "南传佛教建筑展示、景观打卡地标，核心用于展示南传佛教的建筑美学与文化特色", "culture": "曼飞龙塔又称“白塔”，是灵山胜境中代表南传佛教文化的核心建筑，完全复刻了云南西双版纳曼飞龙白塔的形制与工艺。主塔矗立在圆形须弥座", "hl": "拍照打卡，感受南传佛教建筑的异域美学；对比曼飞龙塔（南传）、灵山梵宫（汉传）、五印坛城（藏传）的建筑差异", "open": "全天开放，无时间限制；塔身周边设有观景步道与休息座椅，方便游客观赏、拍照；因塔身采用花岗岩雕刻，表面光滑，雨天"}, {"id": "LS-016", "name": "无尽意斋", "loc": "祥符禅寺西北侧，灵山大佛左下方的山林间，毗邻景区的禅意休息区，环境清幽，远离景区主客流，是一", "param": "占地600㎡，为典型的北京四合院风格建筑，坐北朝南，由正房、东西厢房、倒座房组成，围合形成天井；建筑采用青砖灰", "func": "名人纪念馆、佛教文化展示、人文休憩场所，核心用于纪念赵朴初先生，展示其与", "culture": "无尽意斋于2008年建成，完全以赵朴初先生北京西城区的故居为原型复刻建造，一砖一瓦、一草一木都力求还原故居的原貌。建筑为典型的北", "hl": "参观赵朴初先生纪念馆，了解其生平事迹与对佛教文化的贡献；欣赏赵朴初先生的书法作品，感受其书法艺术的魅力；", "open": "9:00-17:00开放，冬季闭馆时间提前至16:30；禅茶品鉴全天免费提供，茶叶为景区自产的灵山禅茶，需自行"}, {"id": "NH-001", "name": "拈花广场", "loc": "拈花湾禅意小镇入口核心区域，是小镇的门户与集散中心，北接景区入口，南连香月花街，东靠拈花塔，", "param": "占地约8000㎡，广场中央矗立着高12米的“拈花微笑”主题雕塑，采用青铜铸造，表面鎏金处理；广场地面采用青石板", "func": "小镇门户、集散休憩、文化展示，核心用于游客集散、打卡留念，展示拈花湾“禅", "culture": "拈花广场是进入拈花湾禅意小镇的第一站，也是小镇的灵魂节点，整体设计融合中式禅意与日式简约风格，低调而不失雅致。广场中央的“拈花微", "hl": "与“拈花微笑”雕塑打卡合影，定格禅意瞬间；观赏广场水景与绿植景观，感受禅意氛围；参与广场举办的禅意开园仪", "open": "随拈花湾小镇开放时间同步运营（9:00-21:30），冬季闭园时间提前至20:30；广场内演艺活动每日9:30"}, {"id": "NH-002", "name": "梵天花海", "loc": "拈花湾小镇西侧，拈花广场西南方向，毗邻鹿鸣谷，占地面积广阔，是小镇内规模最大的自然景观区，与", "param": "总占地约30000㎡，分为多个花卉区域，种植格桑花、波斯菊、硫华菊、百日草等多种观赏性花卉，搭配木质步道、景观", "func": "自然景观观赏、休闲漫步、拍照打卡，核心用于展示自然之美与禅意的融合，为游", "culture": "梵天花海是拈花湾禅意小镇的“自然名片”，整体规划错落有致，根据季节变化种植不同花卉，实现“四季有花、四季有景”。春季格桑花、波斯", "hl": "四季观赏不同花卉，春季拍格桑花、夏季拍硫华菊，定格绝美花海瞬间；漫步木质步道，感受花海与绿植的清新气息；", "open": "随拈花湾小镇开放时间同步运营（9:00-21:30），冬季闭园时间提前至20:30；花海内步道全天开放，无时间"}, {"id": "NH-003", "name": "香月花街", "loc": "拈花湾小镇核心区域，北接拈花广场，南连五灯湖，贯穿小镇南北中轴线，是小镇内最繁华的禅意商业街", "param": "街道总长约800米，宽8米，地面采用青石板铺设，两侧建筑为中式禅意风格，多为两层砖木结构，白墙黛瓦、飞檐翘角，", "func": "禅意商业、文化体验、休闲消费，核心用于展示禅意文创、特色美食、非遗手作，", "culture": "香月花街是拈花湾禅意小镇的“灵魂街巷”，整体建筑风格融合中式禅意与日式町屋特色，白墙黛瓦与木质门窗相映成趣，飞檐翘角上悬挂着中式", "hl": "逛禅意商铺，选购佛珠、香薰等文创产品；体验剪纸、陶艺等非遗手作，亲手制作专属禅意纪念品；品尝素面、禅茶等", "open": "随拈花湾小镇开放时间同步运营（9:00-21:30），冬季闭园时间提前至20:30；商铺营业时间为9:30-2"}, {"id": "NH-004", "name": "拈花堂", "loc": "香月花街中段东侧，毗邻香月花街核心景观区，隐藏在绿植之中，环境清幽，远离街道的喧嚣，是小镇内", "param": "占地约1200㎡，为中式禅堂建筑，单层砖木结构，白墙黛瓦、朱红门窗，屋顶为歇山顶设计，屋檐下悬挂着木质匾额，刻", "func": "禅意体验、静心休憩、文化传播，核心用于为游客提供禅坐、抄经、禅茶品鉴等禅", "culture": "拈花堂是拈花湾禅意小镇的“静心之地”，整体建筑低调内敛，隐藏在翠竹、松柏之中，白墙黛瓦与周边绿植相映成趣，营造出“闹中取静”的禅", "hl": "在禅坐区静坐冥想，聆听禅乐，缓解身心压力；亲手抄写经文，感悟禅理，留下专属禅意纪念；免费品鉴禅茶，学习禅", "open": "9:30-19:00开放，冬季闭馆时间提前至18:00；禅坐、抄经、禅茶品鉴均免费提供，抄经手稿可自愿带走；禅"}, {"id": "NH-005", "name": "五灯湖", "loc": "拈花湾小镇南侧，香月花街南端，毗邻妙音台，是小镇内最大的水景景观区，也是小镇夜间灯光秀的核心", "param": "湖面面积约5000㎡，湖水清澈见底，湖底铺设鹅卵石，湖面设有木质栈道、景观桥、湖心亭等设施；湖中央设有大型灯光", "func": "水景观赏、夜间演艺、休闲休憩，核心用于展示水景禅意景观，举办夜间灯光秀、", "culture": "五灯湖是拈花湾禅意小镇的“水景核心”，湖面开阔，湖水清澈，湖底的鹅卵石清晰可见，岸边种植着垂柳、翠竹、荷花等绿植，夏季荷花盛开时", "hl": "白天漫步木质栈道，观赏湖景与绿植，拍摄荷花美景（夏季）；在湖心亭静坐休憩，感受湖光禅意；夜间观看《禅行》", "open": "随拈花湾小镇开放时间同步运营（9:00-21:30），冬季闭园时间提前至20:30；白天无演艺活动，夜间《禅行"}, {"id": "NH-006", "name": "鹿鸣谷", "loc": "拈花湾小镇西侧，梵天花海北侧，地处山林之间，是小镇内最静谧的自然景观区，远离主客流，山林植被", "param": "占地约20000㎡，核心为山林景观，种植着香樟、松柏、翠竹等多种绿植，植被覆盖率达90%以上；谷内设有木质步道", "func": "", "culture": "", "hl": "", "open": ""}];
+
+/* 知识块语料：景点字段 + 游览指南切块 */
+const DOCS = [
+  {title:'个性化游览建议 —— 半天精华游线', doc:'游览指南 · 第五章', text:'半天精华游线推荐中轴线缓行：大照壁 → 五明桥 → 佛足坛 → 九龙灌浴 → 登云道电梯至大佛广场抱佛脚，全程约 3 小时，适合老人与儿童。', ref:'doc'},
+  {title:'灵山梵宫《吉祥颂》演出', doc:'游览指南 · 灵山梵宫', text:'《吉祥颂》每日 10:35、11:30、14:00、16:00 演出，时长约 20 分钟，圣坛内设大型旋转舞台，演绎佛陀修行成佛的故事。', ref:'doc'},
+  {title:'小灵山的佛教缘起', doc:'游览指南 · 第一章', text:'唐贞观年间，玄奘法师见马山"层峦丛翠，曲水净秀，山形酷似印度灵鹫山"，赐名"小灵山"，嘱咐弟子窥基兴建小灵山庵，奠定佛教根基。', ref:'doc'}
+];
+
+/* ============ 工具 ============ */
+const $ = s => document.querySelector(s);
+const byId = id => ATTRACTIONS.find(a => a.id === id);
+function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2200); }
+function logSearch(q){
+  try{
+    const log=JSON.parse(localStorage.getItem('js_query_log')||'[]');
+    log.push({q, t:Date.now(), a:AREA?AREA.id:''});
+    localStorage.setItem('js_query_log', JSON.stringify(log));
+  }catch(e){}
+}
+function go(hash){ location.hash = hash; }
+function openConnect(){ $('#connectMask').classList.add('show'); }
+function closeConnect(){ $('#connectMask').classList.remove('show'); }
+function copyUrl(){ navigator.clipboard && navigator.clipboard.writeText('mcp://lingshan.example/sse'); toast('MCP 网址已复制'); }
+
+/* ============ 景区选择 ============ */
+const BUILTIN_AREAS = [
+  {id:'lingshan', name:'灵山胜境', tag:'国家 5A · 世界佛教论坛永久会址', desc:'佛教文化朝圣 + 拈花湾禅意休闲，含胜境、拈花湾两大板块，22 个景点知识已全部接入', grad:'th0', open:true}
+];
+const GHOSTS = [
+  {ghost:true, name:'扩展位', desc:'新景区由管理端创建，资料切块入库后对游客开放'},
+  {ghost:true, name:'扩展位', desc:'多景区数据模型已在数据底座预留（scenic_area 表）'}
+];
+let AREA = null;
+function getAreas(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('js_areas')||'null');
+    if(Array.isArray(saved)&&saved.length){
+      return saved.map(a=>BUILTIN_AREAS.find(x=>x.id===a.id) || {...a, open:false, grad:'th4'});
+    }
+  }catch(e){}
+  return BUILTIN_AREAS;
+}
+function renderHome(){
+  const g=$('#areaGrid'); g.innerHTML='';
+  getAreas().forEach(a=>{
+    if(a.open){
+      g.insertAdjacentHTML('beforeend',
+        `<div class="area-card">
+          <div class="thumb ${a.grad}"><b>${a.name}</b></div>
+          <div class="abody">
+            <div style="font-size:12px;color:var(--primary);font-weight:600">${a.tag}</div>
+            <div class="ameta" style="color:var(--text2);margin-top:7px;line-height:1.6">${a.desc}</div>
+            <button class="abtn" onclick="enterArea('${a.id}')">进入景区</button>
+          </div>
+        </div>`);
+    }else{
+      g.insertAdjacentHTML('beforeend',
+        `<div class="area-card">
+          <div class="thumb th4"><b>${a.name}</b></div>
+          <div class="abody">
+            <div style="font-size:12px;color:#D46B08;font-weight:600">知识库建设中</div>
+            <div class="ameta" style="color:var(--text2);margin-top:7px;line-height:1.6">${a.tag||'资料入库中'}</div>
+            <button class="abtn" style="background:var(--border2);cursor:not-allowed" onclick="toast('该景区资料入库中，敬请期待')">暂未开放</button>
+          </div>
+        </div>`);
+    }
+  });
+  GHOSTS.forEach(a=>{
+    g.insertAdjacentHTML('beforeend',
+      `<div class="area-card ghost"><div class="plus">＋</div><b>${a.name}</b><p style="font-size:12.5px;margin-top:8px;padding:0 20px;line-height:1.6">${a.desc}</p></div>`);
+  });
+}
+function enterArea(id){
+  AREA = getAreas().find(a=>a.id===id);
+  $('#areaChip').textContent = '◈ ' + AREA.name;
+  go('#/chat');
+}
+
+/* ============ 路由 ============ */
+const routes = {home:'page-home', chat:'page-chat', search:'page-search', scenic:'page-scenic', detail:'page-detail'};
+function router(){
+  const h = location.hash || '#/home';
+  const m = h.match(/^#\/(\w+)(?:\/([\w-]+))?/);
+  const name = m ? m[1] : 'home';
+  if(!routes[name]){ location.hash='#/home'; return; }
+  if(name!=='home' && !AREA){ toast('请先选择景区'); location.hash='#/home'; return; }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('show'));
+  document.getElementById(routes[name]).classList.add('show');
+  $('#areaChip').style.display = name==='home' ? 'none' : 'inline-flex';
+  document.querySelectorAll('[data-nav]').forEach(a => {
+    a.classList.toggle('on', a.dataset.nav === name || (name==='detail' && a.dataset.nav==='scenic'));
+  });
+  if(name==='home') renderHome();
+  if(name==='scenic') renderCards('all');
+  if(name==='detail' && m[2]) renderDetail(m[2]);
+  if(name==='search' && !$('#resultList').children.length) doSearch('带老人 半天 怎么逛');
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', router);
+
+/* ============ AI 问答 ============ */
+const QA = [
+  {match:['老人','半天'], a:'建议走中轴线缓行线路：大照壁 → 五明桥 → 佛足坛 → 九龙灌浴（看 10:00 场次）→ 乘登云道电梯至大佛广场抱佛脚。全程约 3 小时，菩提大道两侧设有休息区，适合老人缓行。',
+   cites:[{t:'[1] 景点数据 · LS-005 菩提大道「周边设有休息区域」', ref:'LS-005'},{t:'[2] 游览指南 · 个性化游览建议「半天精华游线」', ref:'doc'}]},
+  {match:['九龙','开演','几点','场次'], a:'九龙灌浴平日演出时间为 10:00、11:30、13:30、15:00；周末及节假日增加场次，每场约 15 分钟，建议提前 10 分钟到场占位。表演结束后可在广场两侧接取"圣水"。',
+   cites:[{t:'[1] 景点数据 · LS-006 九龙灌浴「演艺/开放信息」', ref:'LS-006'}]},
+  {match:['吉祥颂','梵宫'], a:'《吉祥颂》在灵山梵宫圣坛演出，每日 10:35、11:30、14:00、16:00 四场，时长约 20 分钟。圣坛设有大型旋转舞台，运用全息投影与水雾技术演绎佛陀修行成佛的故事。',
+   cites:[{t:'[1] 游览指南 · 灵山梵宫「特色体验」', ref:'doc'}]},
+  {match:['票','价格','多少钱','门票'], a:'资料库中暂未收录票价条目，为避免提供过时信息，我不作猜测。请以灵山胜境官方渠道当日公示为准——这正是不编造的示范：库里没有的，我不答。',
+   cites:[{t:'[1] 系统提示 · 知识库检索无票价相关条目', ref:null}]},
+  {match:['大佛','多高','多少米'], a:'灵山大佛通高 88 米（佛体 79 米、莲花瓣 9 米），总用铜量 725 吨，佛体由 1560 块铜壁板构成。右手施无畏印，左手施与愿印；登云道共 216 级，前 108 级寓意"烦恼尽除"，后 108 级寓意"愿望圆满"。',
+   cites:[{t:'[1] 游览指南 · 灵山大佛「基本数据」', ref:'doc'}]}
+];
+const FALLBACK = {a:'这个问题我在资料库里没有找到足够依据，为避免"一本正经地编"，我建议换个问法，或直接问我景点、演出场次、游览路线类问题。', cites:[{t:'[1] 系统提示 · 检索相关度不足', ref:null}]};
+
+function bubble(cls, html){ const d=document.createElement('div'); d.className='msg '+cls; d.innerHTML=html; $('#chatBox').appendChild(d); return d; }
+function scrollChat(){ const b=$('#chatBox'); b.parentElement.scrollIntoView({block:'end'}); }
+
+function ask(q){
+  go('#/chat');
+  setTimeout(()=>{ $('#chatInput').value=q; send(); }, 60);
+}
+function send(){
+  const input=$('#chatInput'); const q=input.value.trim();
+  if(!q) return;
+  input.value='';
+  logSearch(q);
+  bubble('me', escapeHtml(q));
+  const tp=document.createElement('div'); tp.className='typing'; tp.id='typing';
+  tp.innerHTML='正在检索知识库<i>·</i><i>·</i><i>·</i>';
+  $('#chatBox').appendChild(tp); scrollChat();
+  setTimeout(()=>{
+    tp.remove();
+    const hit = QA.find(item => item.match.some(k => q.includes(k))) || FALLBACK;
+    const cites = hit.cites.map(c => c.ref
+      ? `<button class="cite" onclick="go('#/attraction/${c.ref}')">${c.t} ↗</button>`
+      : `<span class="cite" style="color:var(--text3);border-color:var(--border2);background:var(--bg)">${c.t}</span>`).join('');
+    const b = bubble('bot', escapeHtml(hit.a) + `<div class="quote"><div class="qt">引用来源</div>${cites}</div>`);
+    b.insertAdjacentHTML('afterend','<div class="msg-acts"><button onclick="toast(\'已记录纠错反馈，谢谢\')">有误，纠错</button><button onclick="toast(\'感谢反馈\')">有帮助</button></div>');
+    scrollChat();
+  }, 900);
+}
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+document.querySelectorAll('[data-model]').forEach(ch => ch.addEventListener('click',()=>{
+  document.querySelectorAll('[data-model]').forEach(x=>x.classList.remove('on'));
+  ch.classList.add('on'); toast('模型已切换：'+ch.textContent.trim());
+}));
+
+/* ============ 语义检索（演示：朴素匹配） ============ */
+function buildCorpus(){
+  const rows = ATTRACTIONS.map(a => ({
+    title:`${a.name} —— ${a.func||'景点介绍'}`,
+    text:[a.loc,a.param,a.hl,a.open].join(' '),
+    doc:`景点数据 · ${a.id}`, ref:a.id
+  }));
+  return rows.concat(DOCS.map(d => ({title:d.title,text:d.text,doc:d.doc,ref:d.ref})));
+}
+function doSearch(preset){
+  const input=$('#searchInput');
+  const q=(preset!==undefined && typeof preset==='string' && !preset.type ? preset : input.value).trim() || input.value.trim();
+  if(preset && preset.type) q = input.value.trim();
+  if(!q) return;
+  input.value=q;
+  logSearch(q);
+  const terms=q.split(/[\s，,？?]+/).filter(t=>t.length>=1);
+  const corpus=buildCorpus();
+  const scored=corpus.map(r=>{
+    const hay=r.title+r.text;
+    let hit=0; terms.forEach(t=>{ if(hay.includes(t)) hit++; });
+    const soft=terms.some(t=>t.length>1 && (r.text.includes(t[0])||hay.includes(t)));
+    return {...r, score: hit/(terms.length||1)};
+  }).filter(r=>r.score>0).sort((a,b)=>b.score-a.score).slice(0,6);
+  $('#searchMeta').textContent=`语义匹配到 ${scored.length} 个知识块（0.06 秒）· 检索词："${q}"`;
+  const list=$('#resultList'); list.innerHTML='';
+  if(!scored.length){ list.innerHTML='<div class="result"><div class="rt">没有找到相关知识块</div><div class="rs">换个问法试试，例如"带老人 半天 怎么逛"。</div></div>'; return; }
+  scored.forEach((r,i)=>{
+    const rel=(0.94-i*0.06).toFixed(2);
+    let text=escapeHtml(r.text.slice(0,72));
+    terms.forEach(t=>{ if(t.length>1) text=text.split(escapeHtml(t)).join('<mark>'+escapeHtml(t)+'</mark>'); });
+    const jump = r.ref && r.ref!=='doc' ? ` onclick="go('#/attraction/${r.ref}')"` : '';
+    list.insertAdjacentHTML('beforeend',
+      `<div class="result"${jump} style="${jump?'cursor:pointer':''}">
+        <div class="rt">${r.title}</div>
+        <div class="rs">${text}…</div>
+        <div class="rmeta">
+          <span class="src-tag ${r.ref==='doc'?'src-orange':'src-green'}">${r.doc}</span>
+          <span class="rel"><span class="bar"><i style="width:${rel*100}%"></i></span>相关度 ${rel}</span>
+        </div>
+      </div>`);
+  });
+}
+
+/* ============ 景点导览 ============ */
+function renderCards(f){
+  const list=ATTRACTIONS.filter(a=>f==='all'||a.id.startsWith(f));
+  $('#cardCount').textContent=`共 ${list.length} 个景点 · 数据来自景点结构化数据集`;
+  const grid=$('#cardGrid'); grid.innerHTML='';
+  list.forEach((a,i)=>{
+    grid.insertAdjacentHTML('beforeend',
+      `<div class="card" onclick="go('#/attraction/${a.id}')">
+        <div class="thumb th${i%6}">${a.name.slice(0,6)}</div>
+        <div class="cbody">
+          <div class="cname">${a.name}<span class="cid">${a.id}</span></div>
+          <div class="cdesc">${a.hl||a.func||a.loc}</div>
+          <div class="copen">◷ ${a.open||'全天开放'}</div>
+        </div>
+      </div>`);
+  });
+}
+document.querySelectorAll('#filters .chip').forEach(ch=>ch.addEventListener('click',()=>{
+  document.querySelectorAll('#filters .chip').forEach(x=>x.classList.remove('on'));
+  ch.classList.add('on'); renderCards(ch.dataset.f);
+}));
+
+/* ============ 景点详情 ============ */
+function renderDetail(id){
+  const a=byId(id);
+  if(!a){ go('#/scenic'); return; }
+  $('#dCrumb').textContent=a.name;
+  $('#dName').textContent=a.name.slice(0,6);
+  $('#dName2').textContent=a.name;
+  $('#dId').textContent=a.id;
+  $('#dSub').textContent=`${a.id.startsWith('LS')?'灵山胜境':'拈花湾'} · 景点编号 ${a.id}`;
+  const hero=$('#dHero'); hero.className='d-hero th'+(ATTRACTIONS.indexOf(a)%6);
+  $('#dSrcId').textContent=a.id;
+  const F=[['位置',a.loc],['建筑 · 景观参数',a.param],['核心功能',a.func],['文化内涵',a.culture],['游玩亮点',a.hl],['开放 · 演艺信息',a.open]];
+  $('#dFields').innerHTML=F.filter(f=>f[1]).map(f=>`<div class="field"><span class="k">${f[0]}</span><span class="v">${f[1]}</span></div>`).join('');
+  $('#dAskBtn').onclick=()=>ask(`${a.name}有什么好玩？`);
+}
+
+/* 启动 */
+router();
+</script>
+</body>
+</html>

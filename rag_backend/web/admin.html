@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>景区智搜 · 管理后台</title>
+<style>
+  :root{
+    --primary:#1677FF;--primary-dk:#0958D9;--primary-bg:#E6F4FF;
+    --sidebar:#001529;--sidebar2:#0C2135;
+    --bg:#F0F2F5;--panel:#fff;--border:#F0F0F0;--border2:#D9DCE1;
+    --text:#262626;--text2:#595959;--text3:#8C8C8C;
+    --green:#52C41A;--green-bg:#F6FFED;--orange:#FA8C16;--orange-bg:#FFF7E6;
+    --red:#F5222D;--red-bg:#FFF1F0;
+    --hei:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+    --mono:Consolas,"Courier New",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{background:var(--bg);color:var(--text);font-family:var(--hei);font-size:14px;line-height:1.7}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  input,select{font-family:inherit}
+
+  /* ============ 登录页 ============ */
+  .login-mask{position:fixed;inset:0;background:linear-gradient(135deg,#0C2135,#001529);display:flex;align-items:center;justify-content:center;z-index:100}
+  .login-mask.hide{display:none}
+  .login-card{background:#fff;border-radius:12px;padding:38px 40px;width:360px}
+  .login-card .lg{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;letter-spacing:1px;margin-bottom:4px}
+  .login-card .lg i{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#1677FF,#5AA0FF);display:inline-block}
+  .login-card .lsub{font-size:12.5px;color:var(--text3);margin-bottom:22px}
+  .login-card label{display:block;font-size:12.5px;color:var(--text2);margin:12px 0 5px}
+  .login-card input{width:100%;border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:14px;outline:none}
+  .login-card input:focus{border-color:var(--primary)}
+  .login-btn{width:100%;margin-top:22px;background:var(--primary);color:#fff;border-radius:8px;padding:11px 0;font-size:15px}
+  .login-btn:hover{filter:brightness(.95)}
+  .login-hint{font-size:12px;color:var(--text3);margin-top:14px;text-align:center}
+
+  /* ============ 控制台骨架 ============ */
+  .shell{display:none}
+  .shell.show{display:block}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:225px;background:var(--sidebar);color:rgba(255,255,255,.72);display:flex;flex-direction:column;z-index:20}
+  .sb-logo{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .sb-logo b{display:block;color:#fff;font-size:18px;letter-spacing:2px}
+  .sb-logo span{display:block;font-size:11.5px;opacity:.65;margin-top:3px;letter-spacing:1px}
+  .sb-group{padding:16px 20px 6px;font-size:11.5px;letter-spacing:2px;opacity:.45}
+  .sidebar nav{flex:1}
+  .sidebar nav a{display:block;color:rgba(255,255,255,.72);font-size:14px;padding:11px 20px;border-right:3px solid transparent;text-decoration:none}
+  .sidebar nav a:hover{color:#fff;background:var(--sidebar2)}
+  .sidebar nav a.on{color:#fff;background:var(--primary);border-right-color:#fff}
+  .sb-foot{padding:14px 20px;border-top:1px solid rgba(255,255,255,.08)}
+  .sb-foot a{color:rgba(255,255,255,.72);font-size:13px;text-decoration:none;display:block;margin-bottom:8px}
+  .sb-foot a:hover{color:#fff}
+  .sb-foot button{color:rgba(255,255,255,.72);font-size:13px}
+  .sb-foot button:hover{color:#fff}
+  .main{margin-left:225px;min-height:100vh;display:flex;flex-direction:column}
+  .topbar{position:sticky;top:0;z-index:15;background:#fff;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:16px;padding:0 24px;height:52px}
+  .crumb{font-size:13.5px;color:var(--text3)}
+  .crumb b{color:var(--text)}
+  .crumb-sep{color:var(--border2)}
+  .topbar-right{margin-left:auto;font-size:12.5px;color:var(--text3)}
+  .content{flex:1;width:100%;max-width:1160px;margin:0 auto;padding:20px 24px 50px}
+  .page{display:none}
+  .page.show{display:block;animation:fadein .18s ease}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.page.show{animation:none}}
+
+  /* ============ 面板与控件 ============ */
+  .panel{background:var(--panel);border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.05);margin-bottom:20px;overflow:hidden}
+  .panel-hd{padding:15px 24px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .panel-hd h2{font-size:17px;font-weight:600}
+  .panel-hd .hd-sub{font-size:13px;color:var(--text3)}
+  .panel-bd{padding:22px 24px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+  @media (max-width:860px){.stats{grid-template-columns:1fr}}
+  .stat{background:#fff;border:1px solid var(--border);border-radius:6px;padding:16px 18px}
+  .stat .num{font-size:26px;font-weight:700;color:var(--primary);font-family:var(--mono)}
+  .stat .lbl{font-size:13px;color:var(--text2);margin-top:2px}
+  .note{font-size:12.5px;color:var(--text3)}
+  .tbl-wrap{border:1px solid var(--border2);border-radius:6px;overflow:auto}
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff}
+  table.tbl th{background:#FAFAFA;color:var(--text);font-weight:600;text-align:left;padding:10px 14px;border-bottom:1px solid var(--border2);white-space:nowrap}
+  table.tbl td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+  table.tbl tr:hover td{background:#FAFBFC}
+  table.tbl td strong{color:var(--text)}
+  .tag{display:inline-block;font-size:12px;line-height:20px;border-radius:4px;padding:0 8px;white-space:nowrap}
+  .tg-green{background:var(--green-bg);color:var(--green);border:1px solid #B7EB8F}
+  .tg-orange{background:var(--orange-bg);color:var(--orange);border:1px solid #FFD591}
+  .tg-red{background:var(--red-bg);color:var(--red);border:1px solid #FFA39E}
+  .tg-blue{background:var(--primary-bg);color:var(--primary);border:1px solid #91CAFF}
+  .btn{border-radius:6px;font-size:13px;padding:6px 14px}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:hover{filter:brightness(.95)}
+  .btn-ghost{background:#fff;border:1px solid var(--border2);color:var(--text2)}
+  .btn-danger{background:#fff;border:1px solid #FFA39E;color:var(--red)}
+  .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  .chip{border:1px solid var(--border2);border-radius:16px;padding:4px 14px;color:var(--text2);background:#fff;font-size:13px}
+  .chip.on{border-color:var(--primary);color:var(--primary);background:var(--primary-bg);font-weight:600}
+  .toolbar input{border:1px solid var(--border2);border-radius:6px;padding:7px 12px;font-size:13px;outline:none;width:220px}
+  .toolbar input:focus{border-color:var(--primary)}
+  .toolbar .right{margin-left:auto}
+  tr.rowdoc{cursor:pointer}
+
+  /* 图表条 */
+  .bar-row{display:grid;grid-template-columns:minmax(120px,240px) 1fr 64px;align-items:center;gap:12px;padding:7px 0;font-size:13px}
+  .bar-row .bl{color:var(--text2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-row .track{background:var(--bg);border-radius:4px;height:16px;overflow:hidden}
+  .bar-row .fill{height:100%;background:linear-gradient(90deg,#5AA0FF,#1677FF);border-radius:4px}
+  .bar-row .bv{font-family:var(--mono);font-size:12.5px;color:var(--text3)}
+
+  /* 弹窗 / 提示 */
+  .modal-mask{position:fixed;inset:0;background:rgba(15,25,40,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal-mask.show{display:flex}
+  .modal{background:#fff;border-radius:12px;max-width:480px;width:100%;padding:26px 28px}
+  .modal h3{font-size:17px;margin-bottom:14px}
+  .modal label{display:block;font-size:12.5px;color:var(--text2);margin:12px 0 5px}
+  .modal input,.modal select{width:100%;border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13.5px;outline:none}
+  .progress{height:10px;background:var(--bg);border-radius:5px;overflow:hidden;margin-top:18px;display:none}
+  .progress.show{display:block}
+  .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5AA0FF,#1677FF);transition:width .25s}
+  .toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:#fff;border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(20,40,70,.16);padding:11px 22px;font-size:13.5px;display:none;z-index:60}
+  .toast.show{display:block;animation:fadein .2s ease}
+  .foot-note{max-width:1160px;margin:0 auto;padding:0 24px 34px;font-size:12px;color:var(--text3)}
+  .empty{padding:26px;text-align:center;color:var(--text3);font-size:13px;line-height:1.9}
+.bar-row .track{display:block}
+.bar-row .fill{display:block}
+#chunkPanel .tbl-wrap{max-height:560px;overflow:auto}
+</style>
+</head>
+<body>
+
+<!-- ============ 登录页 ============ -->
+<div class="login-mask" id="loginMask">
+  <div class="login-card">
+    <div class="lg"><i></i>景区智搜 · 管理控制台</div>
+    <div class="lsub">多景区管理 · 资料入库 · 知识审核 · 检索热词</div>
+    <label>管理员账号</label>
+    <input id="loginUser" value="admin" placeholder="管理员账号">
+    <label>密码</label>
+    <input id="loginPwd" type="password" value="" placeholder="密码">
+    <button class="login-btn" onclick="doLogin()">登 录</button>
+    <div class="login-hint">默认账号 admin / 密码 admin · 见 config.yaml</div>
+  </div>
+</div>
+
+<!-- ============ 控制台 ============ -->
+<div class="shell" id="shell">
+  <aside class="sidebar">
+    <div class="sb-logo"><b>景区智搜</b><span>管理控制台 · 多景区知识库</span></div>
+    <nav>
+      <div class="sb-group">数据管理</div>
+      <a href="#/areas" data-nav="areas">景区管理</a>
+      <a href="#/docs" data-nav="docs">资料管理</a>
+      <a href="#/hot" data-nav="hot">检索热词</a>
+    </nav>
+    <div class="sb-foot">
+      <a href="/visitor" target="_blank">↗ 打开游客端</a>
+      <a href="/web/index.html" target="_blank">↗ 打开设计方案</a>
+      <a href="/docs" target="_blank">↗ 打开 API 文档</a>
+      <button onclick="logout()">退出登录</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <span class="crumb">管理控制台 <span class="crumb-sep">/</span> <b id="crumbPage">景区管理</b></span>
+      <span class="topbar-right"><span class="tag tg-green" id="adminTag">管理员 · admin</span></span>
+    </header>
+
+    <div class="content">
+
+      <!-- ============ 景区管理 ============ -->
+      <section class="page" id="page-areas">
+        <div class="toolbar">
+          <span class="note" style="margin:0">景区是知识库的顶层分区：游客端选择页、文档、热词均按景区划分</span>
+          <button class="btn btn-primary right" onclick="openAreaModal()">＋ 创建景区</button>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2>景区列表</h2><span class="hd-sub">使用量来自 qa_log 真实检索日志 · 创建后实时出现在游客端选择页</span></div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>景区</th><th>标签</th><th>文档数</th><th>知识块数</th><th>检索次数</th><th>不同问法</th><th>创建时间</th><th style="width:180px">操作</th></tr></thead>
+              <tbody id="areaBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 资料管理 ============ -->
+      <section class="page" id="page-docs">
+        <div class="toolbar" id="areaChips"></div>
+        <div class="toolbar">
+          <button class="chip on" data-st="all">全部 <span id="cAll"></span></button>
+          <button class="chip" data-st="approved">已入库 <span id="cIn"></span></button>
+          <button class="chip" data-st="pending">待审核 <span id="cPend"></span></button>
+          <button class="chip" data-st="offline">已下架 <span id="cOff"></span></button>
+          <input id="docSearch" placeholder="搜索文档名…" oninput="renderDocs()">
+          <button class="btn btn-primary right" onclick="openUpload()">＋ 上传新文档</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-hd"><h2>文档库</h2><span class="hd-sub" id="docsSub">全部景区 · 上传后自动切块、向量化 · 点击行管理知识块</span></div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>文档名</th><th>所属景区</th><th>类型</th><th>知识块</th><th>状态</th><th>上传时间</th><th>操作</th></tr></thead>
+              <tbody id="docBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel" id="chunkPanel" style="display:none">
+          <div class="panel-hd"><h2 id="chunkTitle" style="font-size:15px"></h2><span class="hd-sub">知识块列表 · 检索与引用的最小单元</span>
+            <button class="btn btn-ghost" style="margin-left:auto" onclick="closeChunks()">收起</button></div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th style="width:90px">块 ID</th><th>来源位置</th><th>内容摘要</th><th style="width:100px">向量</th><th style="width:110px">状态</th><th style="width:150px">操作</th></tr></thead>
+              <tbody id="chunkBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 检索热词 ============ -->
+      <section class="page" id="page-hot">
+        <div class="toolbar" id="hotAreaChips"></div>
+        <div class="stats">
+          <div class="stat"><div class="num" id="stQ">0</div><div class="lbl">累计检索 / 提问次数</div></div>
+          <div class="stat"><div class="num" id="stW">0</div><div class="lbl">不同问法数</div></div>
+          <div class="stat"><div class="num" id="stToday">0</div><div class="lbl">今日新增</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-hd"><h2>高频检索词 TOP10</h2><span class="hd-sub" id="hotSub">全部景区 · 按问句聚合 · 真实日志，无日志时不虚构</span>
+            <button class="btn btn-ghost" style="margin-left:auto" onclick="clearLog()">清空日志</button></div>
+          <div class="panel-bd" id="hotList"></div>
+        </div>
+      </section>
+
+    </div>
+    <div class="foot-note">景区智搜 · 管理后台 —— FastAPI + SQLite 实现：景区增删、文档上传自动切块与向量化、知识块审核上下架、检索热词统计。统计数据来自 qa_log 真实日志，无日志时不虚构。</div>
+  </div>
+</div>
+
+<!-- 创建景区弹窗 -->
+<div class="modal-mask" id="areaMask" onclick="if(event.target===this)closeAreaModal()">
+  <div class="modal">
+    <h3>创建景区</h3>
+    <label>景区名称（必填，不可与现有景区重名）</label>
+    <input id="areaName" placeholder="例如：鼋头渚">
+    <label>一句话标签（展示在游客端选择页）</label>
+    <input id="areaTag" placeholder="例如：太湖佳绝处 · 樱花胜地">
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-primary" style="flex:1" onclick="createArea()">创建（游客端同步可见）</button>
+      <button class="btn btn-ghost" onclick="closeAreaModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 上传弹窗 -->
+<div class="modal-mask" id="uploadMask" onclick="if(event.target===this)closeUpload()">
+  <div class="modal">
+    <h3>上传新文档</h3>
+    <label>所属景区（知识将按景区分区）</label>
+    <select id="upArea"></select>
+    <label>文档名</label>
+    <input id="upName" placeholder="例如：鼋头渚景点介绍.docx">
+    <label>选择文件（.docx / .xlsx / .txt / .md）</label>
+    <input id="upFile" type="file" accept=".docx,.xlsx,.txt,.md">
+    <label>文档类型</label>
+    <select id="upType">
+      <option value="long_doc">长文档（自动切块）</option>
+      <option value="structured">结构化数据（按条目切块）</option>
+      <option value="detail">明细表（直接入库，不切块）</option>
+    </select>
+    <div class="progress" id="upProg"><i id="upBar"></i></div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-primary" style="flex:1" id="upGo" onclick="startUpload()">开始上传并自动切块</button>
+      <button class="btn btn-ghost" onclick="closeUpload()">取消</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- 编辑知识块弹窗 -->
+<div class="modal-mask" id="editMask" onclick="if(event.target===this)closeEdit()">
+  <div class="modal">
+    <h3>编辑知识块</h3>
+    <label>来源位置（标题）</label>
+    <input id="editTitle">
+    <label>正文</label>
+    <textarea id="editContent" rows="9" style="width:100%;border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13.5px;line-height:1.7;outline:none;resize:vertical"></textarea>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-primary" style="flex:1" onclick="saveEdit()">保存并重新向量化</button>
+      <button class="btn btn-ghost" onclick="closeEdit()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/web/admin_app.js"></script>
+</body>
+</html>

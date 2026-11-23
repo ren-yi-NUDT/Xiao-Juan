@@ -55,6 +55,10 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+# ==================== RAG backend runtime data ====================
+# SQLite 库、WAL 与上传文件，均由 scripts/seed.py / 管理端运行时生成
+rag_backend/data/
+
 # ==================== Model / Data artifacts ====================
 *.h5
 *.hdf5

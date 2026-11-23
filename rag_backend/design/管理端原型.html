@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>景区智搜 · 管理端原型</title>
+<style>
+  :root{
+    --primary:#1677FF;--primary-dk:#0958D9;--primary-bg:#E6F4FF;
+    --sidebar:#001529;--sidebar2:#0C2135;
+    --bg:#F0F2F5;--panel:#fff;--border:#F0F0F0;--border2:#D9DCE1;
+    --text:#262626;--text2:#595959;--text3:#8C8C8C;
+    --green:#52C41A;--green-bg:#F6FFED;--orange:#FA8C16;--orange-bg:#FFF7E6;
+    --red:#F5222D;--red-bg:#FFF1F0;
+    --hei:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+    --mono:Consolas,"Courier New",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{background:var(--bg);color:var(--text);font-family:var(--hei);font-size:14px;line-height:1.7}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  input,select{font-family:inherit}
+
+  /* ============ 登录页 ============ */
+  .login-mask{position:fixed;inset:0;background:linear-gradient(135deg,#0C2135,#001529);display:flex;align-items:center;justify-content:center;z-index:100}
+  .login-mask.hide{display:none}
+  .login-card{background:#fff;border-radius:12px;padding:38px 40px;width:360px}
+  .login-card .lg{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;letter-spacing:1px;margin-bottom:4px}
+  .login-card .lg i{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#1677FF,#5AA0FF);display:inline-block}
+  .login-card .lsub{font-size:12.5px;color:var(--text3);margin-bottom:22px}
+  .login-card label{display:block;font-size:12.5px;color:var(--text2);margin:12px 0 5px}
+  .login-card input{width:100%;border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:14px;outline:none}
+  .login-card input:focus{border-color:var(--primary)}
+  .login-btn{width:100%;margin-top:22px;background:var(--primary);color:#fff;border-radius:8px;padding:11px 0;font-size:15px}
+  .login-btn:hover{filter:brightness(.95)}
+  .login-hint{font-size:12px;color:var(--text3);margin-top:14px;text-align:center}
+
+  /* ============ 控制台骨架 ============ */
+  .shell{display:none}
+  .shell.show{display:block}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:225px;background:var(--sidebar);color:rgba(255,255,255,.72);display:flex;flex-direction:column;z-index:20}
+  .sb-logo{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .sb-logo b{display:block;color:#fff;font-size:18px;letter-spacing:2px}
+  .sb-logo span{display:block;font-size:11.5px;opacity:.65;margin-top:3px;letter-spacing:1px}
+  .sb-group{padding:16px 20px 6px;font-size:11.5px;letter-spacing:2px;opacity:.45}
+  .sidebar nav{flex:1}
+  .sidebar nav a{display:block;color:rgba(255,255,255,.72);font-size:14px;padding:11px 20px;border-right:3px solid transparent;text-decoration:none}
+  .sidebar nav a:hover{color:#fff;background:var(--sidebar2)}
+  .sidebar nav a.on{color:#fff;background:var(--primary);border-right-color:#fff}
+  .sb-foot{padding:14px 20px;border-top:1px solid rgba(255,255,255,.08)}
+  .sb-foot a{color:rgba(255,255,255,.72);font-size:13px;text-decoration:none;display:block;margin-bottom:8px}
+  .sb-foot a:hover{color:#fff}
+  .sb-foot button{color:rgba(255,255,255,.72);font-size:13px}
+  .sb-foot button:hover{color:#fff}
+  .main{margin-left:225px;min-height:100vh;display:flex;flex-direction:column}
+  .topbar{position:sticky;top:0;z-index:15;background:#fff;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:16px;padding:0 24px;height:52px}
+  .crumb{font-size:13.5px;color:var(--text3)}
+  .crumb b{color:var(--text)}
+  .crumb-sep{color:var(--border2)}
+  .topbar-right{margin-left:auto;font-size:12.5px;color:var(--text3)}
+  .content{flex:1;width:100%;max-width:1160px;margin:0 auto;padding:20px 24px 50px}
+  .page{display:none}
+  .page.show{display:block;animation:fadein .18s ease}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.page.show{animation:none}}
+
+  /* ============ 面板与控件 ============ */
+  .panel{background:var(--panel);border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.05);margin-bottom:20px;overflow:hidden}
+  .panel-hd{padding:15px 24px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .panel-hd h2{font-size:17px;font-weight:600}
+  .panel-hd .hd-sub{font-size:13px;color:var(--text3)}
+  .panel-bd{padding:22px 24px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+  @media (max-width:860px){.stats{grid-template-columns:1fr}}
+  .stat{background:#fff;border:1px solid var(--border);border-radius:6px;padding:16px 18px}
+  .stat .num{font-size:26px;font-weight:700;color:var(--primary);font-family:var(--mono)}
+  .stat .lbl{font-size:13px;color:var(--text2);margin-top:2px}
+  .note{font-size:12.5px;color:var(--text3)}
+  .tbl-wrap{border:1px solid var(--border2);border-radius:6px;overflow:auto}
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff}
+  table.tbl th{background:#FAFAFA;color:var(--text);font-weight:600;text-align:left;padding:10px 14px;border-bottom:1px solid var(--border2);white-space:nowrap}
+  table.tbl td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+  table.tbl tr:hover td{background:#FAFBFC}
+  table.tbl td strong{color:var(--text)}
+  .tag{display:inline-block;font-size:12px;line-height:20px;border-radius:4px;padding:0 8px;white-space:nowrap}
+  .tg-green{background:var(--green-bg);color:var(--green);border:1px solid #B7EB8F}
+  .tg-orange{background:var(--orange-bg);color:var(--orange);border:1px solid #FFD591}
+  .tg-red{background:var(--red-bg);color:var(--red);border:1px solid #FFA39E}
+  .tg-blue{background:var(--primary-bg);color:var(--primary);border:1px solid #91CAFF}
+  .btn{border-radius:6px;font-size:13px;padding:6px 14px}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:hover{filter:brightness(.95)}
+  .btn-ghost{background:#fff;border:1px solid var(--border2);color:var(--text2)}
+  .btn-danger{background:#fff;border:1px solid #FFA39E;color:var(--red)}
+  .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  .chip{border:1px solid var(--border2);border-radius:16px;padding:4px 14px;color:var(--text2);background:#fff;font-size:13px}
+  .chip.on{border-color:var(--primary);color:var(--primary);background:var(--primary-bg);font-weight:600}
+  .toolbar input{border:1px solid var(--border2);border-radius:6px;padding:7px 12px;font-size:13px;outline:none;width:220px}
+  .toolbar input:focus{border-color:var(--primary)}
+  .toolbar .right{margin-left:auto}
+  tr.rowdoc{cursor:pointer}
+
+  /* 图表条 */
+  .bar-row{display:grid;grid-template-columns:minmax(120px,240px) 1fr 64px;align-items:center;gap:12px;padding:7px 0;font-size:13px}
+  .bar-row .bl{color:var(--text2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-row .track{background:var(--bg);border-radius:4px;height:16px;overflow:hidden}
+  .bar-row .fill{height:100%;background:linear-gradient(90deg,#5AA0FF,#1677FF);border-radius:4px}
+  .bar-row .bv{font-family:var(--mono);font-size:12.5px;color:var(--text3)}
+
+  /* 弹窗 / 提示 */
+  .modal-mask{position:fixed;inset:0;background:rgba(15,25,40,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal-mask.show{display:flex}
+  .modal{background:#fff;border-radius:12px;max-width:480px;width:100%;padding:26px 28px}
+  .modal h3{font-size:17px;margin-bottom:14px}
+  .modal label{display:block;font-size:12.5px;color:var(--text2);margin:12px 0 5px}
+  .modal input,.modal select{width:100%;border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13.5px;outline:none}
+  .progress{height:10px;background:var(--bg);border-radius:5px;overflow:hidden;margin-top:18px;display:none}
+  .progress.show{display:block}
+  .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5AA0FF,#1677FF);transition:width .25s}
+  .toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:#fff;border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(20,40,70,.16);padding:11px 22px;font-size:13.5px;display:none;z-index:60}
+  .toast.show{display:block;animation:fadein .2s ease}
+  .foot-note{max-width:1160px;margin:0 auto;padding:0 24px 34px;font-size:12px;color:var(--text3)}
+  .empty{padding:26px;text-align:center;color:var(--text3);font-size:13px;line-height:1.9}
+</style>
+</head>
+<body>
+
+<!-- ============ 登录页 ============ -->
+<div class="login-mask" id="loginMask">
+  <div class="login-card">
+    <div class="lg"><i></i>景区智搜 · 管理控制台</div>
+    <div class="lsub">多景区管理 · 资料入库 · 知识审核 · 检索热词</div>
+    <label>管理员账号</label>
+    <input id="loginUser" value="admin" placeholder="管理员账号">
+    <label>密码</label>
+    <input id="loginPwd" type="password" value="123456" placeholder="密码">
+    <button class="login-btn" onclick="doLogin()">登 录</button>
+    <div class="login-hint">交互原型 · 任意账号密码均可进入</div>
+  </div>
+</div>
+
+<!-- ============ 控制台 ============ -->
+<div class="shell" id="shell">
+  <aside class="sidebar">
+    <div class="sb-logo"><b>景区智搜</b><span>管理控制台 · 多景区知识库</span></div>
+    <nav>
+      <div class="sb-group">数据管理</div>
+      <a href="#/areas" data-nav="areas">景区管理</a>
+      <a href="#/docs" data-nav="docs">资料管理</a>
+      <a href="#/hot" data-nav="hot">检索热词</a>
+    </nav>
+    <div class="sb-foot">
+      <a href="游客端原型.html" target="_blank">↗ 打开游客端原型</a>
+      <a href="index.html" target="_blank">↗ 打开设计方案</a>
+      <button onclick="logout()">退出登录</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <span class="crumb">管理控制台 <span class="crumb-sep">/</span> <b id="crumbPage">景区管理</b></span>
+      <span class="topbar-right"><span class="tag tg-green">管理员 · admin</span></span>
+    </header>
+
+    <div class="content">
+
+      <!-- ============ 景区管理 ============ -->
+      <section class="page" id="page-areas">
+        <div class="toolbar">
+          <span class="note" style="margin:0">景区是知识库的顶层分区：游客端选择页、文档、热词均按景区划分</span>
+          <button class="btn btn-primary right" onclick="openAreaModal()">＋ 创建景区</button>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2>景区列表</h2><span class="hd-sub">使用量来自游客端真实检索日志 · 创建后实时出现在游客端选择页</span></div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>景区</th><th>标签</th><th>文档数</th><th>知识块数</th><th>检索次数</th><th>不同问法</th><th>创建时间</th><th style="width:180px">操作</th></tr></thead>
+              <tbody id="areaBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 资料管理 ============ -->
+      <section class="page" id="page-docs">
+        <div class="toolbar" id="areaChips"></div>
+        <div class="toolbar">
+          <button class="chip on" data-st="all">全部 <span id="cAll"></span></button>
+          <button class="chip" data-st="已入库">已入库 <span id="cIn"></span></button>
+          <button class="chip" data-st="待审核">待审核 <span id="cPend"></span></button>
+          <button class="chip" data-st="已下架">已下架 <span id="cOff"></span></button>
+          <input id="docSearch" placeholder="搜索文档名…" oninput="renderDocs()">
+          <button class="btn btn-primary right" onclick="openUpload()">＋ 上传新文档</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-hd"><h2>文档库</h2><span class="hd-sub" id="docsSub">全部景区 · 上传后自动切块、向量化 · 点击行管理知识块</span></div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>文档名</th><th>所属景区</th><th>类型</th><th>知识块</th><th>状态</th><th>上传时间</th><th>操作</th></tr></thead>
+              <tbody id="docBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel" id="chunkPanel" style="display:none">
+          <div class="panel-hd"><h2 id="chunkTitle" style="font-size:15px"></h2><span class="hd-sub">知识块列表 · 检索与引用的最小单元</span>
+            <button class="btn btn-ghost" style="margin-left:auto" onclick="closeChunks()">收起</button></div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th style="width:90px">块 ID</th><th>来源位置</th><th>内容摘要</th><th style="width:100px">向量</th><th style="width:110px">状态</th><th style="width:150px">操作</th></tr></thead>
+              <tbody id="chunkBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 检索热词 ============ -->
+      <section class="page" id="page-hot">
+        <div class="toolbar" id="hotAreaChips"></div>
+        <div class="stats">
+          <div class="stat"><div class="num" id="stQ">0</div><div class="lbl">累计检索 / 提问次数</div></div>
+          <div class="stat"><div class="num" id="stW">0</div><div class="lbl">不同问法数</div></div>
+          <div class="stat"><div class="num" id="stToday">0</div><div class="lbl">今日新增</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-hd"><h2>高频检索词 TOP10</h2><span class="hd-sub" id="hotSub">全部景区 · 按问句聚合 · 真实日志，无日志时不虚构</span>
+            <button class="btn btn-ghost" style="margin-left:auto" onclick="clearLog()">清空日志</button></div>
+          <div class="panel-bd" id="hotList"></div>
+        </div>
+      </section>
+
+    </div>
+    <div class="foot-note">景区智搜 · 管理端交互原型 —— 多景区管理：创建 / 删除景区、按景区管理文档、按景区查看检索热词与使用量。景区与热词均与游客端实时同步（localStorage 同源）；无日志时不虚构数据。文档库中 3 份为资料包真实文件，4 份为演示审核流程的示例文档。</div>
+  </div>
+</div>
+
+<!-- 创建景区弹窗 -->
+<div class="modal-mask" id="areaMask" onclick="if(event.target===this)closeAreaModal()">
+  <div class="modal">
+    <h3>创建景区</h3>
+    <label>景区名称（必填，不可与现有景区重名）</label>
+    <input id="areaName" placeholder="例如：鼋头渚">
+    <label>一句话标签（展示在游客端选择页）</label>
+    <input id="areaTag" placeholder="例如：太湖佳绝处 · 樱花胜地">
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-primary" style="flex:1" onclick="createArea()">创建（游客端同步可见）</button>
+      <button class="btn btn-ghost" onclick="closeAreaModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 上传弹窗 -->
+<div class="modal-mask" id="uploadMask" onclick="if(event.target===this)closeUpload()">
+  <div class="modal">
+    <h3>上传新文档</h3>
+    <label>所属景区（知识将按景区分区）</label>
+    <select id="upArea"></select>
+    <label>文档名</label>
+    <input id="upName" placeholder="例如：鼋头渚景点介绍.docx">
+    <label>文档类型</label>
+    <select id="upType">
+      <option>长文档（自动切块）</option>
+      <option>结构化数据（按条目切块）</option>
+      <option>明细表（直接入库，不切块）</option>
+    </select>
+    <div class="progress" id="upProg"><i id="upBar"></i></div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-primary" style="flex:1" id="upGo" onclick="startUpload()">开始上传并自动切块</button>
+      <button class="btn btn-ghost" onclick="closeUpload()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ 工具 ============ */
+const $ = s => document.querySelector(s);
+function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2200); }
+
+/* ============ 登录 ============ */
+function doLogin(){
+  $('#loginMask').classList.add('hide');
+  $('#shell').classList.add('show');
+  location.hash = '#/areas';
+  toast('欢迎，admin');
+}
+function logout(){
+  $('#shell').classList.remove('show');
+  $('#loginMask').classList.remove('hide');
+}
+
+/* ============ 景区（scenic_area）============ */
+let AREAS = JSON.parse(localStorage.getItem('js_areas')||'null') || [
+  {id:'lingshan', name:'灵山胜境', tag:'国家 5A · 世界佛教论坛永久会址', time:'2026-10-20'}
+];
+function saveAreas(){ try{ localStorage.setItem('js_areas', JSON.stringify(AREAS)); }catch(e){} }
+const areaName = id => (AREAS.find(a=>a.id===id)||{}).name || '（未知景区）';
+
+function openAreaModal(){ $('#areaName').value=''; $('#areaTag').value=''; $('#areaMask').classList.add('show'); $('#areaName').focus(); }
+function closeAreaModal(){ $('#areaMask').classList.remove('show'); }
+function createArea(){
+  const name=$('#areaName').value.trim();
+  if(!name){ toast('请填写景区名称'); return; }
+  if(AREAS.some(a=>a.name===name)){ toast('已存在同名景区'); return; }
+  AREAS.push({id:'area'+Date.now(), name, tag:$('#areaTag').value.trim(), time:new Date().toISOString().slice(0,10)});
+  saveAreas();
+  closeAreaModal(); renderAreas(); renderAreaChips(); renderHotAreaChips();
+  toast(`景区「${name}」已创建，游客端选择页同步可见`);
+}
+function deleteArea(id){
+  const a=AREAS.find(x=>x.id===id);
+  const n=DOCS.filter(d=>d.area===id).length;
+  if(!confirm(`确认删除景区「${a.name}」？\n将同时移除其 ${n} 份文档，游客端选择页同步下线。`)) return;
+  AREAS=AREAS.filter(x=>x.id!==id);
+  DOCS=DOCS.filter(d=>d.area!==id);
+  if(areaFilter===id) areaFilter='all';
+  saveAreas();
+  renderAreas(); renderAreaChips(); renderHotAreaChips(); renderDocs();
+  toast(`景区「${a.name}」已删除`);
+}
+function areaStats(id){
+  const docs=DOCS.filter(d=>d.area===id);
+  const chunks=docs.reduce((s,d)=>s+d.chunks.length,0);
+  const log=getLog().filter(x=>x.a===id);
+  const qs=new Set(log.map(x=>String(x.q).trim()));
+  return {docs:docs.length, chunks, hits:log.length, words:qs.size};
+}
+function renderAreas(){
+  const body=$('#areaBody');
+  body.innerHTML = AREAS.map(a=>{
+    const s=areaStats(a.id);
+    return `<tr>
+      <td><strong>${a.name}</strong></td>
+      <td>${a.tag||'—'}</td>
+      <td>${s.docs}</td><td>${s.chunks}</td><td>${s.hits}</td><td>${s.words}</td>
+      <td>${a.time}</td>
+      <td>
+        <button class="btn btn-ghost" onclick="manageDocs('${a.id}')">管理文档</button>
+        <button class="btn btn-ghost" onclick="manageHot('${a.id}')">热词</button>
+        <button class="btn btn-danger" onclick="deleteArea('${a.id}')">删除</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8"><div class="empty">还没有景区，点击右上角"创建景区"</div></td></tr>';
+}
+function manageDocs(id){ setArea(id); location.hash='#/docs'; }
+function manageHot(id){ hotScope=id; location.hash='#/hot'; }
+
+/* ============ 检索热词（真实日志：与游客端 localStorage 同源共享） ============ */
+function getLog(){
+  try{ return JSON.parse(localStorage.getItem('js_query_log')||'[]'); }catch(e){ return []; }
+}
+function bars(el, rows, fmt){
+  const max = Math.max(...rows.map(r=>r[1]));
+  $(el).innerHTML = rows.map(r=>`
+    <div class="bar-row">
+      <span class="bl" title="${r[0]}">${r[0]}</span>
+      <span class="track"><span class="fill" style="width:${max?r[1]/max*100:0}%"></span></span>
+      <span class="bv">${fmt?fmt(r[1]):r[1]}</span>
+    </div>`).join('');
+}
+let hotScope='all';
+function renderHotAreaChips(){
+  $('#hotAreaChips').innerHTML =
+    `<span class="chip ${hotScope==='all'?'on':''}" onclick="hotScope='all';renderHotAreaChips();renderHot()">全部景区</span>` +
+    AREAS.map(a=>`<span class="chip ${hotScope===a.id?'on':''}" onclick="hotScope='${a.id}';renderHotAreaChips();renderHot()">${a.name}</span>`).join('');
+  $('#hotSub').textContent = `${hotScope==='all'?'全部景区':areaName(hotScope)} · 按问句聚合 · 真实日志，无日志时不虚构`;
+}
+function renderHot(){
+  const log=getLog().filter(x=>hotScope==='all'||x.a===hotScope);
+  $('#stQ').textContent=log.length;
+  const groups={};
+  log.forEach(x=>{ const k=String(x.q).trim(); if(k) groups[k]=(groups[k]||0)+1; });
+  const rows=Object.entries(groups).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  $('#stW').textContent=Object.keys(groups).length;
+  const today=new Date().toDateString();
+  $('#stToday').textContent=log.filter(x=>new Date(x.t).toDateString()===today).length;
+  const el=$('#hotList');
+  if(!rows.length){
+    el.innerHTML='<div class="empty">该范围内暂无检索日志。<br>去 <a href="游客端原型.html" target="_blank" style="color:var(--primary)">游客端原型</a> 选择景区后检索或提问几次，回到这里即可看到真实统计。</div>';
+    return;
+  }
+  bars(el, rows, v=>v+' 次');
+}
+function clearLog(){ localStorage.removeItem('js_query_log'); renderHot(); toast('日志已清空'); }
+
+/* ============ 资料管理（按景区分区） ============ */
+let DOCS = [
+  {area:'lingshan', name:'灵山胜境 景点结构化数据集.docx', type:'结构化数据', time:'2026-10-20', status:'已入库',
+   chunks:[['#142','LS-005 菩提大道 · 游玩亮点','漫步林荫拱廊，感受禅意清幽，聆听菩提叶作响…','已入库'],['#143','LS-005 菩提大道 · 开放信息','全天开放，四季景致各异，春季赏菩提花…','已入库'],['#242','LS-016 景区概览 · 备注','进入景区首处打卡点，如愿火车站装置为小众取景框…','已入库']]},
+  {area:'lingshan', name:'灵山胜境游览指南.docx', type:'长文档', time:'2026-10-20', status:'已入库',
+   chunks:[['#001','第一章 · 小灵山的佛教缘起','唐贞观年间，玄奘法师见马山"层峦丛翠，曲水净秀"…','已入库'],['#048','第五章 · 半天精华游线','中轴线缓行：大照壁 → 五明桥 → 佛足坛 → 九龙灌浴…','已入库'],['#056','附录 · 版权与资料说明','本文档内容整理自景区公开资料…','已入库']]},
+  {area:'lingshan', name:'游客行为明细表.xlsx', type:'明细表', time:'2026-10-21', status:'已入库', nochunk:true, chunks:[]},
+  {area:'lingshan', name:'游览指南·第九章修订.docx', type:'长文档', time:'2026-10-26', status:'待审核',
+   chunks:[['#401','第九章 · 夜游灵山线路','夜游推荐：大照壁灯光 → 九龙灌浴夜场 → 梵宫外观…','待审核'],['#402','第九章 · 夜间演出时刻','夜间场次以景区广播为准，末场一般不晚于 20:30…','待审核'],['#403','第九章 · 游览注意事项','夜间路灯光线较暗，建议穿防滑鞋…','待审核'],['#404','第九章 · 小结','夜游灵山另有一番清净禅意…','待审核']]},
+  {area:'lingshan', name:'梵宫讲解词（新增）.docx', type:'长文档', time:'2026-10-27', status:'待审核',
+   chunks:[['#501','梵宫 · 建筑艺术讲解','华藏世界琉璃壁画由 160 块琉璃构件、2000 吨琉璃熔铸…','待审核'],['#502','梵宫 · 《吉祥颂》幕后','圣坛大型旋转舞台运用全息投影与水雾技术…','待审核'],['#503','梵宫 · 参观须知','宫内请保持安静，勿触碰艺术品…','待审核'],['#504','梵宫 · 讲解词附录','东阳木雕以贵重金丝楠木为主材…','待审核']]},
+  {area:'lingshan', name:'九龙灌浴场次调整通知.docx', type:'通知', time:'2026-10-27', status:'待审核',
+   chunks:[['#601','正文 · 场次调整','自 11 月 1 日起，平日演出时间调整为 10:00、11:30、14:30…','待审核'],['#602','正文 · 适用日期说明','调整适用于淡季工作日，节假日另行公告…','待审核']]},
+  {area:'lingshan', name:'旧版票价说明.docx', type:'长文档', time:'2026-10-15', status:'已下架',
+   chunks:[['#701','正文 · 票价表（已过期）','成人票 190 元 / 学生票 140 元…（已过期，仅供存档）','已下架'],['#702','正文 · 优惠政策（已过期）','60 岁以上老人凭证件半价…（已过期）','已下架'],['#703','正文 · 购票渠道（已过期）','线下售票窗口及官方小程序…（已过期）','已下架']]}
+];
+let docFilter='all', areaFilter='all', curDoc=null;
+
+function renderAreaChips(){
+  $('#areaChips').innerHTML =
+    `<span class="chip ${areaFilter==='all'?'on':''}" onclick="setArea('all')">全部景区</span>` +
+    AREAS.map(a=>`<span class="chip ${areaFilter===a.id?'on':''}" onclick="setArea('${a.id}')">${a.name}</span>`).join('');
+}
+function setArea(id){ areaFilter=id; renderAreaChips(); renderDocs(); }
+function docCounts(list){
+  $('#cAll').textContent=`(${list.length})`;
+  $('#cIn').textContent=`(${list.filter(d=>d.status==='已入库').length})`;
+  $('#cPend').textContent=`(${list.filter(d=>d.status==='待审核').length})`;
+  $('#cOff').textContent=`(${list.filter(d=>d.status==='已下架').length})`;
+}
+function renderDocs(){
+  const scoped=DOCS.filter(d=>areaFilter==='all'||d.area===areaFilter);
+  docCounts(scoped);
+  $('#docsSub').textContent = `${areaFilter==='all'?'全部景区':areaName(areaFilter)} · 上传后自动切块、向量化 · 点击行管理知识块`;
+  const kw=$('#docSearch').value.trim();
+  const body=$('#docBody'); body.innerHTML='';
+  scoped.filter(d => (docFilter==='all'||d.status===docFilter) && d.name.includes(kw))
+    .forEach(d=>{
+      body.insertAdjacentHTML('beforeend',
+        `<tr class="rowdoc" onclick="showChunks(${DOCS.indexOf(d)})">
+          <td><strong>${d.name}</strong></td>
+          <td><span class="tag tg-blue">${areaName(d.area)}</span></td>
+          <td>${d.type}</td>
+          <td>${d.nochunk?'<span style="color:var(--text3)">直接入库</span>':d.chunks.length+' 块'}</td>
+          <td><span class="tag ${d.status==='已入库'?'tg-green':d.status==='待审核'?'tg-orange':'tg-red'}">${d.status}</span></td>
+          <td>${d.time}</td>
+          <td><button class="btn btn-ghost" onclick="event.stopPropagation();showChunks(${DOCS.indexOf(d)})">查看</button></td>
+        </tr>`);
+    });
+  if(!body.innerHTML) body.innerHTML='<tr><td colspan="7"><div class="empty">没有符合条件的文档</div></td></tr>';
+}
+document.querySelectorAll('[data-st]').forEach(ch=>ch.addEventListener('click',()=>{
+  document.querySelectorAll('[data-st]').forEach(x=>x.classList.remove('on'));
+  ch.classList.add('on'); docFilter=ch.dataset.st; renderDocs();
+}));
+function statusTag(s){ return `<span class="tag ${s==='已入库'?'tg-green':s==='待审核'?'tg-orange':'tg-red'}">${s}</span>`; }
+function showChunks(i){
+  curDoc=i;
+  const d=DOCS[i];
+  $('#chunkTitle').textContent=`${d.name} · ${areaName(d.area)}`;
+  const body=$('#chunkBody');
+  if(d.nochunk){
+    body.innerHTML='<tr><td colspan="6"><div class="empty">该文档为明细表，按事实表直接入库，不参与知识切块</div></td></tr>';
+  }else{
+    body.innerHTML=d.chunks.map((c,ci)=>`
+      <tr>
+        <td><code>${c[0]}</code></td>
+        <td>${c[1]}</td>
+        <td style="max-width:300px">${c[2]}</td>
+        <td>${c[3]==='待审核'?'<span class="tag tg-orange">待向量化</span>':'<span class="tag tg-blue">已向量化</span>'}</td>
+        <td>${statusTag(c[3])}</td>
+        <td>${chunkOps(ci)}</td>
+      </tr>`).join('');
+  }
+  $('#chunkPanel').style.display='block';
+  $('#chunkPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function chunkOps(ci){
+  const s=DOCS[curDoc].chunks[ci][3];
+  if(s==='待审核') return `<button class="btn btn-primary" onclick="setChunk(${ci},'已入库')">通过</button> <button class="btn btn-danger" onclick="setChunk(${ci},'已下架')">下架</button>`;
+  if(s==='已入库') return `<button class="btn btn-danger" onclick="setChunk(${ci},'已下架')">下架</button>`;
+  return `<button class="btn btn-ghost" onclick="setChunk(${ci},'待审核')">恢复待审</button>`;
+}
+function setChunk(ci,s){
+  DOCS[curDoc].chunks[ci][3]=s;
+  toast(`知识块 ${DOCS[curDoc].chunks[ci][0]} → ${s}`);
+  showChunks(curDoc);
+}
+function closeChunks(){ $('#chunkPanel').style.display='none'; }
+
+/* ============ 上传新文档（归属景区） ============ */
+function openUpload(){
+  if(!AREAS.length){ toast('请先创建景区'); return; }
+  $('#upArea').innerHTML = AREAS.map(a=>`<option value="${a.id}" ${a.id===areaFilter?'selected':''}>${a.name}</option>`).join('');
+  $('#upName').value=''; $('#upProg').classList.remove('show'); $('#upBar').style.width='0'; $('#upGo').disabled=false;
+  $('#uploadMask').classList.add('show');
+}
+function closeUpload(){ $('#uploadMask').classList.remove('show'); }
+let uploading=false;
+function startUpload(){
+  if(uploading) return;
+  const name=$('#upName').value.trim();
+  if(!name){ toast('请填写文档名'); return; }
+  if(DOCS.some(d=>d.name===name && d.area===$('#upArea').value)){ toast('该景区下已存在同名文档'); return; }
+  const area=$('#upArea').value, type=$('#upType').value;
+  uploading=true; $('#upGo').disabled=true;
+  $('#upProg').classList.add('show');
+  const bar=$('#upBar'); let p=0;
+  const timer=setInterval(()=>{
+    p+=Math.random()*22+8;
+    if(p>=100){
+      p=100; clearInterval(timer);
+      setTimeout(()=>{
+        const today=new Date().toISOString().slice(0,10);
+        const nochunk=type.includes('不切块');
+        const n=3+Math.floor(Math.random()*3);
+        const chunks=[]; if(!nochunk) for(let i=0;i<n;i++) chunks.push([`#8${i+1}`,'解析中 · 来源位置待定',name.replace(/\.\w+$/,'')+' · 自动切块内容摘要…','待审核']);
+        DOCS.unshift({area, name, type:nochunk?'明细表':'长文档', time:today, status:'待审核', nochunk, chunks});
+        uploading=false; closeUpload(); renderDocs();
+        if(areaFilter!=='all'&&areaFilter!==area) setArea(area);
+        showChunks(0);
+        toast(`已入库到「${areaName(area)}」：${nochunk?'明细表直接入库':'自动切成 '+n+' 个知识块，等待审核'}`);
+      },250);
+    }
+    bar.style.width=p+'%';
+  },220);
+}
+
+/* ============ 路由 ============ */
+function router(){
+  const name=(location.hash.match(/^#\/(\w+)/)||[])[1]||'areas';
+  const page={areas:'page-areas', docs:'page-docs', hot:'page-hot'}[name]||'page-areas';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('show'));
+  document.getElementById(page).classList.add('show');
+  $('#crumbPage').textContent={areas:'景区管理', docs:'资料管理', hot:'检索热词'}[name]||'景区管理';
+  document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('on',a.dataset.nav===name));
+  if(name==='hot'){ renderHotAreaChips(); renderHot(); }
+  if(name==='docs') renderAreaChips();
+}
+window.addEventListener('hashchange',router);
+window.addEventListener('storage',e=>{
+  if(e.key==='js_query_log'){ renderHot(); renderAreas(); }
+  if(e.key==='js_areas'){ renderAreas(); renderAreaChips(); renderHotAreaChips(); }
+});
+
+/* ============ 启动 ============ */
+saveAreas();
+renderAreas();
+renderAreaChips();
+renderHotAreaChips();
+renderDocs();
+router();
+</script>
+</body>
+</html>

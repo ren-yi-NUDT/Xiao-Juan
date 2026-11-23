@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>景区智搜 · 数据库课程设计方案（企业数据管理系统风格）</title>
+<style>
+  :root{
+    --primary:#1677FF;
+    --primary-dk:#0958D9;
+    --primary-bg:#E6F4FF;
+    --sidebar:#001529;
+    --sidebar2:#0C2135;
+    --bg:#F0F2F5;
+    --panel:#FFFFFF;
+    --border:#F0F0F0;
+    --border2:#D9DCE1;
+    --text:#262626;
+    --text2:#595959;
+    --text3:#8C8C8C;
+    --green:#52C41A;
+    --green-bg:#F6FFED;
+    --orange:#FA8C16;
+    --orange-bg:#FFF7E6;
+    --red:#F5222D;
+    --red-bg:#FFF1F0;
+    --wf-line:#D6DAE1;
+    --wf-fill:#F5F6F8;
+    --hei:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+    --mono:Consolas,"Courier New",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{background:var(--bg);color:var(--text);font-family:var(--hei);font-size:14px;line-height:1.7}
+  code{font-family:var(--mono);font-size:.88em;background:var(--wf-fill);border:1px solid var(--border2);border-radius:3px;padding:.05em .4em;color:var(--primary-dk)}
+  a{color:var(--primary);text-decoration:none}
+  b,strong{font-weight:600}
+
+  /* ============ 侧边栏 ============ */
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:225px;background:var(--sidebar);color:rgba(255,255,255,.72);display:flex;flex-direction:column;z-index:20}
+  .sb-logo{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .sb-logo b{display:block;color:#fff;font-size:19px;letter-spacing:2px}
+  .sb-logo span{display:block;font-size:11.5px;opacity:.65;margin-top:3px;letter-spacing:1px}
+  .sb-group{padding:16px 20px 6px;font-size:11.5px;letter-spacing:2px;opacity:.45}
+  .sidebar nav{flex:1;overflow-y:auto;padding-bottom:12px}
+  .sidebar nav a{display:block;color:rgba(255,255,255,.72);font-size:14px;padding:11px 20px;border-right:3px solid transparent}
+  .sidebar nav a:hover{color:#fff;background:var(--sidebar2)}
+  .sidebar nav a.on{color:#fff;background:var(--primary);border-right-color:#fff}
+  .sb-foot{padding:14px 20px;font-size:11.5px;opacity:.45;border-top:1px solid rgba(255,255,255,.08)}
+
+  /* ============ 主区 ============ */
+  .main{margin-left:225px;min-height:100vh;display:flex;flex-direction:column}
+  .topbar{position:sticky;top:0;z-index:15;background:#fff;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:16px;padding:0 24px;height:52px}
+  .crumb{font-size:13.5px;color:var(--text3)}
+  .crumb b{color:var(--text);font-weight:600}
+  .crumb-sep{color:var(--border2)}
+  .topbar-right{margin-left:auto;font-size:12.5px;color:var(--text3);display:flex;align-items:center;gap:14px}
+  .topbar-right .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:5px}
+  .content{flex:1;width:100%;max-width:1160px;margin:0 auto;padding:20px 24px 50px}
+
+  /* ============ 面板 ============ */
+  .panel{background:var(--panel);border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.05);margin-bottom:20px;overflow:hidden}
+  .panel-hd{padding:15px 24px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .panel-hd h2{font-size:17px;font-weight:600}
+  .panel-hd .hd-sub{font-size:13px;color:var(--text3)}
+  .panel-hd .hd-right{margin-left:auto;font-size:12px;color:var(--text3)}
+  .panel-bd{padding:22px 24px}
+  section.panel{scroll-margin-top:64px}
+
+  /* ============ 标签 ============ */
+  .tag{display:inline-block;font-size:12px;line-height:20px;border-radius:4px;padding:0 8px;white-space:nowrap}
+  .tg-blue{background:var(--primary-bg);color:var(--primary);border:1px solid #91CAFF}
+  .tg-green{background:var(--green-bg);color:var(--green);border:1px solid #B7EB8F}
+  .tg-orange{background:var(--orange-bg);color:var(--orange);border:1px solid #FFD591}
+  .tg-red{background:var(--red-bg);color:var(--red);border:1px solid #FFA39E}
+  .fn-id{display:inline-block;font-family:var(--mono);font-size:11.5px;color:var(--primary-dk);background:var(--primary-bg);border:1px solid #91CAFF;border-radius:4px;padding:0 6px}
+
+  /* ============ 统计卡片 ============ */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:18px 0 22px}
+  @media (max-width:820px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{border:1px solid var(--border);border-radius:6px;padding:16px 18px;background:#FBFCFE}
+  .stat .num{font-size:28px;font-weight:700;color:var(--primary);font-family:var(--mono)}
+  .stat .num small{font-size:14px;font-weight:400;color:var(--text3);margin-left:3px}
+  .stat .lbl{font-size:13px;color:var(--text2);margin-top:2px}
+
+  .sys-def{font-size:15px;background:var(--primary-bg);border:1px solid #91CAFF;border-radius:6px;padding:12px 18px;color:var(--text)}
+  .sys-def b{color:var(--primary-dk)}
+
+  h3.sec{font-size:15px;font-weight:600;margin:26px 0 12px;padding-left:9px;border-left:3px solid var(--primary)}
+  h3.sec:first-of-type{margin-top:2px}
+  .note{font-size:13px;color:var(--text3);margin:-6px 0 12px}
+
+  /* ============ 表格 ============ */
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff}
+  table.tbl th{background:#FAFAFA;color:var(--text);font-weight:600;text-align:left;padding:10px 14px;border-bottom:1px solid var(--border2)}
+  table.tbl td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+  table.tbl tr:hover td{background:#FAFBFC}
+  table.tbl td strong{color:var(--text)}
+  table.tbl .r{font-family:var(--mono);font-size:12.5px;color:var(--primary-dk)}
+  .tbl-wrap{border:1px solid var(--border2);border-radius:6px;overflow:hidden}
+
+  /* ============ RAG 步骤条 ============ */
+  .steps{display:flex;gap:8px;flex-wrap:wrap}
+  .step{flex:1 1 190px;background:#FBFCFE;border:1px solid var(--border2);border-radius:6px;padding:14px 16px;min-width:180px;position:relative}
+  .step i{font-style:normal;display:inline-block;width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;text-align:center;line-height:22px;font-size:12px;margin-bottom:8px;font-family:var(--mono)}
+  .step h4{font-size:14px;font-weight:600}
+  .step p{font-size:12.5px;color:var(--text3);margin-top:3px;line-height:1.6}
+  .step .who{float:right;font-size:11px;padding:0 7px;border-radius:4px}
+  .step-cap{margin-top:12px;font-size:13px;color:var(--text3);background:var(--wf-fill);border-radius:4px;padding:8px 14px}
+  .step-cap b{color:var(--primary-dk)}
+
+  /* ============ 站点树 ============ */
+  .tree{background:#FBFCFE;border:1px solid var(--border2);border-radius:6px;padding:20px 24px;font-size:14px}
+  .tree ul{list-style:none;padding-left:26px;border-left:1px solid var(--border2)}
+  .tree>ul{border-left:none;padding-left:0}
+  .tree li{position:relative;padding:5px 0 5px 18px}
+  .tree ul>li::before{content:"";position:absolute;left:-1px;top:19px;width:14px;height:1px;background:var(--border2)}
+  .tree .node{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .tree .tier{display:inline-block;color:#fff;font-size:12px;border-radius:4px;padding:1px 9px}
+  .tree .t-visitor{background:var(--primary)}
+  .tree .t-admin{background:var(--green)}
+  .tree .t-api{background:var(--orange)}
+  .tree .pname{font-weight:600;color:var(--text)}
+  .tree .route{font-family:var(--mono);font-size:12.5px;color:var(--text3)}
+  .tree .pdesc{font-size:12.5px;color:var(--text3)}
+  .tree .star{color:var(--red);font-size:11px;border:1px solid #FFA39E;background:var(--red-bg);border-radius:4px;padding:0 6px}
+
+  /* ============ 线框图 ============ */
+  .wf-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:8px}
+  @media (max-width:860px){.wf-grid{grid-template-columns:1fr}}
+  .wf-item{margin:0}
+  .wf-item.wide{grid-column:1/-1}
+  .wf{border:1px solid var(--border2);border-radius:6px;overflow:hidden;background:#fff;font-size:11.5px;line-height:1.55}
+  .wf-cap{margin-top:10px;font-size:13px;color:var(--text3);max-width:48em}
+  .wf-cap b{color:var(--text);font-size:13.5px}
+  .wf-cap code{font-size:.85em}
+  .w-top{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border2);background:#FAFBFC}
+  .w-logo{width:14px;height:14px;border-radius:3px;background:var(--primary)}
+  .w-link{color:var(--text3)}
+  .w-link.on{color:var(--primary);font-weight:600;border-bottom:2px solid var(--primary)}
+  .w-btn{margin-left:auto;border:1px solid var(--border2);border-radius:4px;padding:1px 9px;color:var(--text2)}
+  .w-btn.solid{background:var(--primary);border-color:var(--primary);color:#fff}
+  .w-btn.red{background:var(--red);border-color:var(--red);color:#fff}
+  .w-pad{padding:12px}
+  .w-search{border:1px solid var(--primary);border-radius:4px;padding:5px 12px;display:flex;gap:8px;color:var(--text3);box-shadow:0 1px 2px rgba(22,119,255,.12)}
+  .w-search .go{margin-left:auto;color:#fff;background:var(--primary);border-radius:4px;padding:0 12px}
+  .w-list{border:1px solid var(--border2);border-radius:4px}
+  .w-li{padding:8px 12px;border-bottom:1px solid var(--border)}
+  .w-li:last-child{border-bottom:none}
+  .w-li .t{font-weight:600;font-size:12.5px;color:var(--text)}
+  .w-li .s{color:var(--text3);margin-top:1px}
+  .w-li mark{background:#FFF1B8;color:var(--text);padding:0 1px}
+  .w-src{display:inline-block;font-size:10px;color:var(--green);border:1px solid #B7EB8F;background:var(--green-bg);border-radius:4px;padding:0 6px;margin-top:3px}
+  .w-src.bold{background:var(--green);color:#fff}
+  .w-src.rel{color:var(--orange);border-color:#FFD591;background:var(--orange-bg)}
+  .w-side{border:1px solid var(--border2);border-radius:4px;padding:8px 10px;color:var(--text3);background:#FBFCFE}
+  .w-two{display:grid;grid-template-columns:1.7fr 1fr;gap:10px}
+  .w-field{display:flex;border-bottom:1px dashed var(--border);padding:3px 0;gap:8px}
+  .w-field .k{flex:0 0 74px;color:var(--text3)}
+  .w-img{border:1px solid var(--border2);border-radius:4px;height:86px;display:flex;align-items:center;justify-content:center;color:var(--text3);background:var(--wf-fill)}
+  .w-chat{border:1px solid var(--border2);border-radius:4px;padding:8px 10px;max-width:78%;background:var(--wf-fill);color:var(--text)}
+  .w-chat.me{margin-left:auto;background:var(--primary-bg);border-color:#91CAFF}
+  .w-quote{border-left:3px solid var(--primary);padding-left:8px;margin-top:6px;font-size:10.5px;color:var(--text3)}
+  .w-input{border:1px solid var(--primary);border-radius:4px;padding:4px 12px;display:flex;margin-top:10px;color:var(--text3)}
+  .w-input .go{margin-left:auto;color:#fff;background:var(--primary);border-radius:4px;padding:0 12px}
+  .w-tabs{display:flex;gap:14px;border-bottom:1px solid var(--border2);padding:0 12px;background:#FAFBFC}
+  .w-tab{padding:5px 2px;color:var(--text3)}
+  .w-tab.on{border-bottom:2px solid var(--primary);color:var(--primary);font-weight:600}
+  .w-row{display:flex;gap:8px;align-items:center}
+  .w-code{font-family:var(--mono);font-size:10.5px;background:#1F2126;color:#D9DEE7;border-radius:4px;padding:9px 11px;white-space:pre;line-height:1.55;overflow:hidden}
+  .w-code .g{color:#95DE64}.w-code .o{color:#FFC069}
+  .w-chip{border:1px solid var(--border2);border-radius:4px;padding:0 8px;color:var(--text3)}
+  .w-chip.on{border-color:var(--primary);color:var(--primary);background:var(--primary-bg)}
+  .w-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .w-step{border:1px dashed var(--border2);border-radius:4px;padding:8px 10px;color:var(--text3)}
+  .w-step i{font-style:normal;display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;text-align:center;line-height:16px;font-size:10px;margin-right:5px}
+  .w-step b{color:var(--text)}
+  .w-dbmock{border:1px solid var(--border2);border-radius:6px;padding:10px 12px;background:var(--wf-fill)}
+  .w-dbmock .hd{display:flex;gap:6px;align-items:center;font-size:10.5px;color:var(--text3);border-bottom:1px dashed var(--border2);padding-bottom:5px;margin-bottom:6px}
+  .w-tool{display:inline-block;font-family:var(--mono);font-size:10px;color:#fff;background:var(--red);border-radius:4px;padding:0 6px;margin:1px 2px 1px 0}
+
+  /* ============ 动线 ============ */
+  .flowline{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;margin:8px 0 22px}
+  .fl-node{flex:1 1 150px;border:1px solid #B7EB8F;border-radius:6px;background:var(--green-bg);padding:10px 12px;min-width:150px}
+  .fl-node h5{font-size:13.5px;color:#389E0D}
+  .fl-node p{font-size:12px;color:var(--text3);margin-top:2px}
+  .fl-node.hollow{border-style:dashed}
+  .fl-arrow{flex:0 0 22px;display:flex;align-items:center;justify-content:center;color:var(--text3)}
+  .flowline.ai .fl-node{border-color:#FFD591;background:var(--orange-bg)}
+  .flowline.ai .fl-node h5{color:#D46B08}
+  .fl-label{font-size:14px;font-weight:600;margin-top:22px}
+  .fl-label small{font-weight:400;color:var(--text3);margin-left:10px}
+
+  /* 列表 */
+  ul.plain{margin:0 0 8px 1.6em;font-size:13.5px;color:var(--text2)}
+  ul.plain li{margin:5px 0}
+  ul.plain b{color:var(--text)}
+
+  /* ============ 页脚 ============ */
+  .foot{background:#fff;border-top:1px solid var(--border2);padding:18px 24px;font-size:12.5px;color:var(--text3);display:flex;gap:24px;flex-wrap:wrap;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sb-logo"><b>景区智搜</b><span>景区数据管理 · 数据库课程设计</span></div>
+  <nav>
+    <div class="sb-group">设计方案</div>
+    <a href="#overview" class="on">系统概览</a>
+    <a href="#part1">第一部分 · 出发动机</a>
+    <a href="#part2">第二部分 · 功能菜单</a>
+    <a href="#part3">第三部分 · 页面体系</a>
+    <div class="sb-group">附录</div>
+    <a href="#req">附A · 需求分析</a>
+    <a href="#data">附B · 数据底座</a>
+  </nav>
+  <div class="sb-foot">V1.0 · 2026-10-27<br>线下检查版</div>
+</aside>
+
+<div class="main">
+
+<header class="topbar">
+  <span class="crumb">数据库课程设计 <span class="crumb-sep">/</span> 设计方案 <span class="crumb-sep">/</span> <b>景区智搜</b></span>
+  <span class="topbar-right"><span><span class="dot"></span>材料就绪</span><span>检查日期 2026-10-29</span><span>管理员</span></span>
+</header>
+
+<div class="content">
+
+<!-- ============ 系统概览 ============ -->
+<section class="panel" id="overview">
+  <div class="panel-hd">
+    <h2>系统概览</h2>
+    <span class="hd-sub">通用景区数据管理系统 · 内置 RAG</span>
+    <span class="hd-right">V1.0 · 2026-10-27</span>
+  </div>
+  <div class="panel-bd">
+    <p class="sys-def"><b>景区智搜</b>——景区知识 RAG 中枢：<b>网页即问，AI 即接</b>。游客在线咨询 AI 导游；把系统网址发给豆包，豆包即接入知识库，秒变灵山专业导游。</p>
+
+    <div class="stats">
+      <div class="stat"><div class="num">22<small>个</small></div><div class="lbl">景点数据（灵山胜境 16 + 拈花湾 6）</div></div>
+      <div class="stat"><div class="num">10<small>项</small></div><div class="lbl">功能（F1–F10，三端）</div></div>
+      <div class="stat"><div class="num">10<small>个</small></div><div class="lbl">页面（三端页面体系）</div></div>
+      <div class="stat"><div class="num">11<small>张</small></div><div class="lbl">数据表（数据底座）</div></div>
+    </div>
+
+    <h3 class="sec">交付物清单</h3>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <tr><th>老师要求</th><th>内容</th><th>位置</th><th>状态</th></tr>
+      <tr><td>第一部分 出发动机</td><td>四条动机 + RAG 检索增强链路</td><td>本页 · 第一部分</td><td><span class="tag tg-green">已就绪</span></td></tr>
+      <tr><td>第二部分 功能菜单</td><td>三端十项功能（F1–F10），标注涉及数据表</td><td>本页 · 第二部分</td><td><span class="tag tg-green">已就绪</span></td></tr>
+      <tr><td>第三部分 页面体系</td><td>9 页站点树、页面清单、6 张线框图、3 条动线</td><td>本页 · 第三部分</td><td><span class="tag tg-green">已就绪</span></td></tr>
+      <tr><td>附A 需求分析</td><td>角色 / 非功能需求 / 本期边界</td><td>本页 · 附录</td><td><span class="tag tg-blue">加分项</span></td></tr>
+      <tr><td>附B 数据底座</td><td>三类资料 → 11 张表落位与关系</td><td>本页 · 附录</td><td><span class="tag tg-blue">加分项</span></td></tr>
+    </table>
+    </div>
+
+    <h3 class="sec">示例数据来源</h3>
+    <p class="note">全部为景区公开资料包真实数据，导入后即可支撑全部演示场景。</p>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <tr><th>资料</th><th>形态</th><th>规模</th></tr>
+      <tr><td>灵山胜境景点结构化数据集</td><td><span class="tag tg-blue">结构化</span></td><td>22 个景点 × 11 个字段（LS/NH 编号）</td></tr>
+      <tr><td>灵山胜境游览指南</td><td><span class="tag tg-orange">长文档</span></td><td>约万字，切分为知识块入库</td></tr>
+      <tr><td>游客行为分析数据</td><td><span class="tag tg-green">明细记录</span></td><td>17 列（消费五项、满意度、同行人数等）</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 第一部分 ============ -->
+<section class="panel" id="part1">
+  <div class="panel-hd">
+    <h2>第一部分 · 出发动机</h2>
+    <span class="hd-sub">为什么要做这个信息系统</span>
+  </div>
+  <div class="panel-bd">
+    <p style="max-width:52em;color:var(--text2)">
+      游客问"灵山怎么玩"，正在从拨打景区电话、翻官网，变成<b style="color:var(--text)">直接问豆包</b>。大模型正在成为景区对外的"第一个客服窗口"——但它没有学过灵山的资料：九龙灌浴的场次张口就编，梵宫的票价随口就答。本系统把景区资料结构化入库，游客在网页上直接问 AI 导游，豆包等大模型则通过标准接口接入本系统获得真实资料。
+    </p>
+
+    <h3 class="sec">动机明细</h3>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <tr><th style="width:110px">动机</th><th>问题现状</th><th>本系统对策</th></tr>
+      <tr>
+        <td><span class="tag tg-red">入口迁移</span></td>
+        <td>游客从打电话转向问豆包 / DeepSeek；通用大模型没有景区资料，演出场次、票价张口就编，景区在第一客服窗口上失声。</td>
+        <td>资料结构化入库，对 AI 暴露 MCP / REST 标准接口，大模型"先查库、再作答"。</td>
+      </tr>
+      <tr>
+        <td><span class="tag tg-orange">AI 可用</span></td>
+        <td>直接用大模型回答景区问题会产生幻觉，答案不可靠、无法核对。</td>
+        <td>文档切块向量化 + 语义检索（RAG）：答案仅依据召回的知识块生成，并附引用来源。</td>
+      </tr>
+      <tr>
+        <td><span class="tag tg-blue">重复咨询</span></td>
+        <td>"几点开演、票价多少"等事实型问题占人工咨询大头，高峰期应答慢、成本高。</td>
+        <td>网页端 AI 导游 7×24 秒答常规问题，人工客服只处理复杂个案。</td>
+      </tr>
+      <tr>
+        <td><span class="tag tg-green">一库两端</span></td>
+        <td>若网页与 AI 各维护一套资料，更新不同步必然出现"两套口径"事故。</td>
+        <td>同一数据库服务两端：一次入库、两端一致；qa_log_chunk 表实现答案全程溯源。</td>
+      </tr>
+    </table>
+    </div>
+
+    <h3 class="sec">核心机制：内置 RAG 检索增强</h3>
+    <p class="note">网页里的 AI 导游、外部的豆包，回答灵山问题时走的是同一条链路：</p>
+    <div class="steps">
+      <div class="step"><span class="who tag tg-blue">游客 / 豆包</span><i>1</i><h4>提出问题</h4><p>网页对话输入，或 MCP 工具 / POST /api/ask 调用</p></div>
+      <div class="step"><span class="who tag tg-green">系统</span><i>2</i><h4>语义检索</h4><p>问题向量化，与知识块向量比对相似度，召回最相关片段</p></div>
+      <div class="step"><span class="who tag tg-green">系统</span><i>3</i><h4>返回依据</h4><p>知识块原文 + 来源（景点 ID / 文档章节），写入问答日志</p></div>
+      <div class="step"><span class="who tag tg-orange">大模型</span><i>4</i><h4>生成答案</h4><p>只依据召回资料作答，附引用来源，不编造</p></div>
+    </div>
+    <p class="step-cap">数据库是整条链路的心脏：<b>AI 回答得好不好，取决于资料入库时切得好不好、检索得准不准</b>——这正是本课程设计要解决的数据库问题。</p>
+  </div>
+</section>
+
+<!-- ============ 第二部分 ============ -->
+<section class="panel" id="part2">
+  <div class="panel-hd">
+    <h2>第二部分 · 功能菜单</h2>
+    <span class="hd-sub">按服务对象分三端，共 10 项功能（F1–F10）</span>
+  </div>
+  <div class="panel-bd">
+
+    <h3 class="sec">游客端 <span class="tag tg-blue" style="margin-left:6px">网页 · 面向人</span></h3>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <tr><th style="width:60px">编号</th><th style="width:150px">功能</th><th>说明</th><th style="width:230px">涉及数据表</th></tr>
+      <tr><td><span class="fn-id">F1</span></td><td><strong>AI 导游对话</strong></td><td>网页直接问，RAG 检索本库作答，答案附引用来源；支持接入豆包 API 或本地模型（Ollama）</td><td>知识块 · 演出场次 · 问答日志</td></tr>
+      <tr><td><span class="fn-id">F2</span></td><td><strong>语义检索</strong></td><td>"带老人半天怎么逛"这类口语问题也能直接搜，向量召回 + 关键词匹配</td><td>知识块</td></tr>
+      <tr><td><span class="fn-id">F3</span></td><td><strong>景点与演出查询</strong></td><td>按景区 / 主题浏览 22 个景点，查看字段详情与演出场次</td><td>景点 · 演出场次</td></tr>
+      <tr><td><span class="fn-id">F4</span></td><td><strong>纠错反馈</strong></td><td>对 AI 回答一键纠错，人工复核后修正知识库</td><td>纠错反馈 · 问答日志</td></tr>
+    </table>
+    </div>
+
+    <h3 class="sec">管理端 <span class="tag tg-green" style="margin-left:6px">后台 · 景区管理员</span></h3>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <tr><th style="width:60px">编号</th><th style="width:150px">功能</th><th>说明</th><th style="width:230px">涉及数据表</th></tr>
+      <tr><td><span class="fn-id">F5</span></td><td><strong>景区与资料管理</strong></td><td>创建 / 删除景区；上传 docx / xlsx 自动切块、向量化并归属景区</td><td>景区表 · 原始文档 · 知识块</td></tr>
+      <tr><td><span class="fn-id">F6</span></td><td><strong>知识审核与上下架</strong></td><td>逐块审核、编辑、下架，把控对游客和对 AI 的口径</td><td>知识块</td></tr>
+      <tr><td><span class="fn-id">F7</span></td><td><strong>检索热词分析</strong></td><td>高频检索词与热门问题，来自检索与问答日志的自动聚合</td><td>问答日志</td></tr>
+    </table>
+    </div>
+
+    <h3 class="sec">AI 接入端 <span class="tag tg-orange" style="margin-left:6px">开放接口 · 面向 AI</span></h3>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <tr><th style="width:60px">编号</th><th style="width:150px">功能</th><th>说明</th><th style="width:230px">涉及数据表</th></tr>
+      <tr><td><span class="fn-id">F8</span></td><td><strong>MCP 一发即连</strong></td><td>把本系统网址发给豆包等支持 MCP 的 AI，AI 即获得 search_knowledge、get_attraction 等工具</td><td>知识块 · 接口密钥</td></tr>
+      <tr><td><span class="fn-id">F9</span></td><td><strong>REST API</strong></td><td>POST /api/search（检索知识块）、POST /api/ask（检索 + 生成直答），响应均含来源</td><td>知识块 · 问答日志</td></tr>
+      <tr><td><span class="fn-id">F10</span></td><td><strong>密钥与调用统计</strong></td><td>api_key 签发、调用限额、按接入方统计问答日志</td><td>接口密钥 · 问答日志</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 第三部分 ============ -->
+<section class="panel" id="part3">
+  <div class="panel-hd">
+    <h2>第三部分 · 页面体系</h2>
+    <span class="hd-sub">共 10 个页面，分游客端、管理端、AI 接入三部分</span>
+  </div>
+  <div class="panel-bd">
+
+    <h3 class="sec">页面层级（站点树）</h3>
+    <p class="note">AI 导游页是游客的主入口：打开即对话，检索与详情是对话的延伸；豆包等 AI 则完全不走页面，直接调 MCP 工具。</p>
+    <div class="tree">
+      <ul>
+        <li>
+          <div class="node"><span class="tier t-visitor">游客端</span><span class="pdesc">面向游客，4 页</span></div>
+          <ul>
+            <li><div class="node"><span class="pname">AI 导游页（主入口）</span><span class="star">核心</span><span class="route">/chat</span><span class="pdesc">打开即对话 · 引用可追溯 · 可接入豆包 API / 本地模型</span></div>
+              <ul>
+                <li><div class="node"><span class="pname">检索结果页</span><span class="route">/search?q=</span><span class="pdesc">语义召回的知识块列表 · 来源标签 · 相关度</span></div></li>
+                <li><div class="node"><span class="pname">景点列表页</span><span class="route">/scenic/{景区ID}</span><span class="pdesc">分类筛选 · 卡片网格</span></div></li>
+                <li><div class="node"><span class="pname">景点详情页</span><span class="route">/attraction/{景点ID}</span><span class="pdesc">字段卡片 · 演出时刻 · 数据来源</span></div></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="node"><span class="tier t-admin">管理端</span><span class="pdesc">面向景区管理员，4 页</span></div>
+          <ul>
+            <li><div class="node"><span class="pname">登录页</span><span class="route">/admin/login</span><span class="pdesc">管理员身份验证</span></div></li>
+            <li><div class="node"><span class="pname">景区管理页</span><span class="route">/admin/areas</span><span class="pdesc">创建 / 删除景区 · 各景区文档数与检索用量</span></div></li>
+            <li><div class="node"><span class="pname">资料管理页</span><span class="route">/admin/docs</span><span class="pdesc">上传 · 自动切块向量化 · 审核上下架</span></div></li>
+            <li><div class="node"><span class="pname">检索热词页</span><span class="route">/admin/stats</span><span class="pdesc">高频检索词 · 热门问题（qa_log 聚类）</span></div></li>
+          </ul>
+        </li>
+        <li>
+          <div class="node"><span class="tier t-api">AI 接入</span><span class="pdesc">面向豆包等大模型，2 页</span></div>
+          <ul>
+            <li><div class="node"><span class="pname">接入引导页</span><span class="star">核心</span><span class="route">/connect</span><span class="pdesc">三步接入指引 · MCP 地址 · 工具清单</span></div></li>
+            <li><div class="node"><span class="pname">API 文档页</span><span class="route">/api</span><span class="pdesc">REST 接口说明 · 请求 / 响应示例</span></div></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <h3 class="sec">页面清单</h3>
+    <p class="note">每页标注路由、核心模块与对应功能编号（对应第二部分 F1–F10）。</p>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <tr><th>页面</th><th>路由</th><th>核心模块</th><th>功能</th><th>服务对象</th></tr>
+      <tr><td><strong>AI 导游页（主入口）</strong></td><td class="r">/chat</td><td>对话流、引用 [1][2]、模型接入设置、纠错入口</td><td>F1 F4</td><td>游客</td></tr>
+      <tr><td>检索结果页</td><td class="r">/search?q=</td><td>语义召回列表、来源标签、相关度排序</td><td>F2 F3</td><td>游客</td></tr>
+      <tr><td>景点列表页</td><td class="r">/scenic/{id}</td><td>筛选器、景点卡片网格</td><td>F3</td><td>游客</td></tr>
+      <tr><td>景点详情页</td><td class="r">/attraction/{id}</td><td>字段卡片、演出场次、来源</td><td>F3</td><td>游客</td></tr>
+      <tr><td>登录页</td><td class="r">/admin/login</td><td>账号密码校验</td><td>—</td><td>管理员</td></tr>
+      <tr><td><strong>景区管理页</strong></td><td class="r">/admin/areas</td><td>创建 / 删除景区、各景区文档数与检索使用量</td><td>F5 F7</td><td>管理员</td></tr>
+      <tr><td>资料管理页</td><td class="r">/admin/docs</td><td>上传、切块向量化进度、审核状态流转</td><td>F5 F6</td><td>管理员</td></tr>
+      <tr><td>检索热词页</td><td class="r">/admin/stats</td><td>高频检索词、热门问题（qa_log 聚类）</td><td>F7</td><td>管理员</td></tr>
+      <tr><td><strong>接入引导页</strong></td><td class="r">/connect</td><td>三步接入指引、MCP 地址复制、工具清单</td><td>F8</td><td>AI / 游客转发</td></tr>
+      <tr><td>API 文档页</td><td class="r">/api</td><td>接口说明、请求 / 响应示例、限额</td><td>F9 F10</td><td>AI / 第三方</td></tr>
+    </table>
+    </div>
+
+    <h3 class="sec">关键页面线框图</h3>
+    <p class="note">六个代表性页面 / 场景，内容均为真实示例数据。</p>
+    <div class="wf-grid">
+
+      <!-- 1 AI 导游页 -->
+      <figure class="wf-item">
+        <div class="wf">
+          <div class="w-top"><span class="w-logo"></span><b>景区智搜</b><span class="w-link on">AI 导游</span><span class="w-link">检索</span><span class="w-link">景点</span><span class="w-btn">接入豆包</span></div>
+          <div class="w-pad">
+            <div class="w-row" style="font-size:10.5px;color:var(--text3)">模型：<span class="w-chip on">内置（豆包 API）</span><span class="w-chip">本地 Ollama</span><span class="w-chip">填我自己的 Key</span></div>
+            <div style="text-align:center;font-size:13px;font-weight:600;margin:12px 0 4px">我是灵山 AI 导游</div>
+            <div style="text-align:center;font-size:10.5px;color:var(--text3);margin-bottom:8px">答案全部来自灵山胜境官方资料，可点开核对</div>
+            <div class="w-chat me">带老人半天怎么逛灵山？</div>
+            <div class="w-chat" style="max-width:88%">
+              建议走中轴线缓行线路：大照壁 → 五明桥 → 佛足坛 → 九龙灌浴（看 10:00 场次）→ 电梯登大佛广场抱佛脚。全程约 3 小时，菩提大道两侧有休息区。
+              <div class="w-quote"><b>引用来源</b><br>[1] 景点数据 · LS-005 菩提大道「周边设有休息区域」<br>[2] 游览指南 · 个性化游览建议「半天精华游线」</div>
+            </div>
+            <div class="w-input">继续问…<span class="go">发送</span></div>
+          </div>
+        </div>
+        <figcaption class="wf-cap"><b>AI 导游页</b> <code>/chat</code>（主入口）<br>打开网页即对话，不走关键词搜索；答案只依据库内资料生成并附引用；模型可换本地 Ollama 或游客自己的豆包 Key（F1、F4）。</figcaption>
+      </figure>
+
+      <!-- 2 接入引导页 -->
+      <figure class="wf-item wide">
+        <div class="wf">
+          <div class="w-top"><span class="w-logo"></span><b>景区智搜</b><span class="w-link">AI 导游</span><span class="w-link red on" style="color:var(--red)">接入豆包</span><span class="w-link">API 文档</span></div>
+          <div class="w-pad">
+            <div class="w-steps">
+              <div class="w-step"><i>1</i><b>复制本网址</b><br>mcp://lingshan.example/sse ——下方一键复制</div>
+              <div class="w-step"><i>2</i><b>添加到豆包</b><br>豆包 → 设置 → MCP 工具 → 添加，粘贴网址</div>
+              <div class="w-step"><i>3</i><b>开聊</b><br>问豆包任何灵山问题，它已"持证上岗"</div>
+            </div>
+            <div class="w-two" style="margin-top:8px">
+              <div>
+                <div style="font-size:10.5px;color:var(--text3);margin-bottom:4px">豆包获得这 4 个工具（AI 自动按需调用）：</div>
+                <span class="w-tool">search_knowledge(q)</span><span class="w-tool">get_attraction(id)</span><span class="w-tool">get_performances(date)</span><span class="w-tool">plan_route(prefs)</span>
+                <div class="w-code" style="margin-top:6px">游客：<span class="g">"明天周几开门？梵宫演出最晚一场几点？"</span>
+豆包：调用 <span class="o">get_performances()</span> → 检索返回
+　　知识块 <span class="g">"《吉祥颂》10:35 / 11:30 / 14:00 / 16:00"</span>
+豆包：<span class="g">"最晚一场 16:00，时长 20 分钟，建议 15:40 前入场。"</span>
+　　（附来源：游览指南 · 灵山梵宫）</div>
+              </div>
+              <div class="w-dbmock">
+                <div class="hd"><span class="w-logo"></span><b>景区智搜知识库</b> —— 豆包的背后是同一个库</div>
+                <div class="w-li"><span class="t">knowledge_chunk</span><div class="s">28 份资料 · 312 个知识块 · 已向量化</div></div>
+                <div class="w-li"><span class="t">本次调用命中</span><div class="s">chunk #87 梵宫演出 → 相似度 0.92</div></div>
+                <div class="w-li"><span class="t">qa_log</span><div class="s">接入方：豆包 · 本次调用已记录</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="wf-cap"><b>接入引导页</b> <code>/connect</code>（核心）<br>"把这个网址发给豆包"的落地页：三步接入，豆包获得 4 个知识工具，回答自动检索本系统知识库并附来源——游客端与豆包读同一个数据库（F8）。</figcaption>
+      </figure>
+
+      <!-- 3 检索结果 -->
+      <figure class="wf-item">
+        <div class="wf">
+          <div class="w-top"><span class="w-logo"></span><b>景区智搜</b><span class="w-link">AI 导游</span><span class="w-link on">检索</span><span class="w-link">景点</span></div>
+          <div class="w-pad">
+            <div class="w-search"><span>带老人 半天 怎么逛</span><span class="go">搜索</span></div>
+            <div style="color:var(--text3);margin:8px 2px">语义匹配到 <b style="color:var(--primary)">3</b> 个知识块（0.06 秒）</div>
+            <div class="w-list">
+              <div class="w-li">
+                <div class="t">个性化游览建议 —— 半天精华游线</div>
+                <div class="s">中轴线缓行：<mark>大照壁 → 五明桥 → 九龙灌浴</mark> → 电梯登大佛广场…</div>
+                <span class="w-src bold">游览指南 · 第五章</span> <span class="w-src rel">相关度 0.94</span>
+              </div>
+              <div class="w-li">
+                <div class="t">菩提大道 —— 无障碍与休息</div>
+                <div class="s">路面平整宽阔，<mark>周边设有休息区域</mark>，方便老人停留…</div>
+                <span class="w-src">景点数据 · LS-005</span> <span class="w-src rel">相关度 0.88</span>
+              </div>
+              <div class="w-li">
+                <div class="t">九龙灌浴 —— 演出信息</div>
+                <div class="s">平日 <mark>10:00、11:30、13:30、15:00</mark>，每场约 15 分钟…</div>
+                <span class="w-src">景点数据 · LS-006</span> <span class="w-src rel">相关度 0.81</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="wf-cap"><b>检索结果页</b> <code>/search?q=</code><br>检索是 RAG 的内部环节，也可单独使用：口语化问题直接命中语义相关知识块，按相似度排序，来源标签可点开原文（F2）。</figcaption>
+      </figure>
+
+      <!-- 4 景点详情 -->
+      <figure class="wf-item">
+        <div class="wf">
+          <div class="w-top"><span class="w-logo"></span><b>景区智搜</b><span class="w-link">AI 导游</span><span class="w-link on">景点</span></div>
+          <div class="w-pad">
+            <div class="row" style="display:flex;gap:8px;align-items:baseline"><b style="font-size:14px">九龙灌浴</b><span style="color:var(--text3)">LS-006 · 灵山胜境 · 动态景观</span></div>
+            <div class="w-two" style="margin-top:8px">
+              <div>
+                <div class="w-img">景区实景图</div>
+                <div style="margin-top:8px">
+                  <div class="w-field"><span class="k">位置</span><span>菩提大道北端，中轴线核心</span></div>
+                  <div class="w-field"><span class="k">建筑参数</span><span>总高 27.2m · 鎏金太子佛 7.2m / 12 吨</span></div>
+                  <div class="w-field"><span class="k">文化内涵</span><span>再现"花开见佛，九龙沐浴"诞辰祥瑞</span></div>
+                  <div class="w-field"><span class="k">演出场次</span><span>10:00 / 11:30 / 13:30 / 15:00</span></div>
+                </div>
+              </div>
+              <div class="w-side">
+                <b style="color:var(--text)">本页数据来源</b><br>景点结构化数据集<br>LS-006 全部 11 字段<br><br>
+                <span style="color:var(--primary)">▸ 问 AI 导游关于本景点</span><br>
+                <span style="color:var(--primary)">▸ 在豆包中打开本页</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="wf-cap"><b>景点详情页</b> <code>/attraction/LS-006</code><br>结构化字段逐项展示；右栏把游客引向 AI：本页数据同时是 AI 导游和豆包回答 LS-006 问题的依据（F3）。</figcaption>
+      </figure>
+
+      <!-- 5 后台资料管理 -->
+      <figure class="wf-item">
+        <div class="wf">
+          <div class="w-top"><span class="w-logo"></span><b>景区智搜</b><span class="w-link on">资料管理</span><span class="w-link">统计看板</span><span class="w-btn">管理员</span></div>
+          <div class="w-tabs"><span class="w-tab">已入库 (28)</span><span class="w-tab on">待审核 (4)</span><span class="w-tab">已下架 (1)</span></div>
+          <div class="w-pad">
+            <div class="w-row"><span class="w-btn solid">＋ 上传 docx / xlsx</span><span style="color:var(--text3)">自动切块 → 向量化 → 关联景点</span></div>
+            <div class="w-list" style="margin-top:8px">
+              <div class="w-li">
+                <div class="w-row"><b>灵山胜境 景点结构化数据集.docx</b><span style="margin-left:auto;color:var(--text3)">22 景点 × 11 字段 → 242 块</span></div>
+                <div class="w-row" style="margin-top:4px;font-size:10.5px;color:var(--text3)">
+                  <span class="w-src bold">chunk #142 已向量化</span><span class="w-src bold">chunk #143 已向量化</span><span class="w-src">chunk #144 待审核</span>
+                </div>
+              </div>
+              <div class="w-li">
+                <div class="w-row"><b>游览指南.docx · 第五章</b><span style="margin-left:auto;color:var(--text3)">7 个知识块</span></div>
+                <div class="w-row" style="margin-top:4px">
+                  <span class="w-btn">预览</span><span class="w-btn solid">通过</span><span class="w-btn">下架</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="wf-cap"><b>资料管理页</b> <code>/admin/docs</code><br>上传即自动切块、向量化入库；知识块按"待审核 → 已上架"流转——入库质量决定 AI 回答质量（F5、F6）。</figcaption>
+      </figure>
+
+      <!-- 6 API 文档 -->
+      <figure class="wf-item">
+        <div class="wf">
+          <div class="w-top"><span class="w-logo"></span><b>景区智搜</b><span class="w-link">AI 导游</span><span class="w-link on">API 文档</span><span class="w-link">密钥</span></div>
+          <div class="w-pad">
+            <div class="w-row"><b style="font-size:12.5px">POST /api/ask</b><span style="color:var(--text3)">检索 + 生成直答 —— 供不便接 MCP 的大模型调用</span></div>
+            <div class="w-code" style="margin-top:6px"><span class="o">POST</span> /api/ask
+<span class="g">{</span> <span class="o">"q"</span>: <span class="g">"梵宫《吉祥颂》今天几场？"</span>,
+       <span class="o">"api_key"</span>: <span class="g">"sk-…"</span> <span class="g">}</span>
+
+<span class="g">{</span> <span class="o">"answer"</span>: <span class="g">"每日 10:35、11:30、14:00、16:00…"</span>,
+  <span class="o">"sources"</span>: <span class="g">[</span>
+    <span class="g">{</span> <span class="o">"chunk_id"</span>: 87, <span class="o">"doc"</span>: <span class="g">"游览指南"</span>,
+      <span class="o">"loc"</span>: <span class="g">"灵山梵宫 · 特色体验"</span> <span class="g">}</span> <span class="g">]</span> <span class="g">}</span></div>
+            <div style="margin-top:6px;color:var(--text3)">调用配额：免费 1,000 次 / 日 · 响应含 chunk_id 可回查原文</div>
+          </div>
+        </div>
+        <figcaption class="wf-cap"><b>API 文档页</b> <code>/api</code><br>MCP 之外的标准通道：任何能调 HTTP 的大模型 / 应用都能接入，响应自带来源元数据（F9、F10）。</figcaption>
+      </figure>
+
+    </div>
+
+    <h3 class="sec">三条服务动线，同一个数据库</h3>
+    <p class="note">一次入库，处处可用：游客在网页问，豆包在对话里答，读的都是同一批知识块。</p>
+
+    <div class="fl-label">游客动线<small>网页 · 人用</small></div>
+    <div class="flowline">
+      <div class="fl-node"><h5>打开 /chat</h5><p>直接向 AI 导游提问</p></div>
+      <div class="fl-arrow">➔</div>
+      <div class="fl-node"><h5>语义检索知识库</h5><p>召回相关知识块</p></div>
+      <div class="fl-arrow">➔</div>
+      <div class="fl-node"><h5>带引用的回答</h5><p>点 [1][2] 核对原文</p></div>
+      <div class="fl-arrow">➔</div>
+      <div class="fl-node hollow"><h5>日志沉淀</h5><p>行为写入 qa_log，反哺热门问题与纠错</p></div>
+    </div>
+
+    <div class="fl-label">豆包动线<small>MCP · 机器用</small></div>
+    <div class="flowline ai">
+      <div class="fl-node"><h5>游客把网址发给豆包</h5><p>或在豆包 MCP 设置中添加</p></div>
+      <div class="fl-arrow">➔</div>
+      <div class="fl-node"><h5>豆包调用工具</h5><p>search_knowledge / get_performances…</p></div>
+      <div class="fl-arrow">➔</div>
+      <div class="fl-node"><h5>检索同一知识库</h5><p>返回知识块 + 来源元数据</p></div>
+      <div class="fl-arrow">➔</div>
+      <div class="fl-node hollow"><h5>专业导游式回答</h5><p>豆包组织语言，依据是灵山真实资料</p></div>
+    </div>
+
+    <div class="fl-label">第三方动线<small>REST API · 机器用</small></div>
+    <div class="flowline ai">
+      <div class="fl-node"><h5>小程序 / 导览机器人</h5><p>任何能发 HTTP 请求的应用</p></div>
+      <div class="fl-arrow">➔</div>
+      <div class="fl-node"><h5>POST /api/ask</h5><p>带 api_key，问题进、答案出</p></div>
+      <div class="fl-arrow">➔</div>
+      <div class="fl-node"><h5>响应含 sources</h5><p>chunk_id 可回查原文</p></div>
+      <div class="fl-arrow">➔</div>
+      <div class="fl-node hollow"><h5>调用统计</h5><p>按接入方记录在 qa_log 与密钥表</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 附A：需求分析 ============ -->
+<section class="panel" id="req">
+  <div class="panel-hd">
+    <h2>附A · 需求分析</h2>
+    <span class="hd-sub">谁在用、用什么、要做到什么程度、哪些明确不做</span>
+  </div>
+  <div class="panel-bd">
+
+    <h3 class="sec">用户角色与需求</h3>
+    <p class="note">四类角色共用一个知识库：两个人（游客、管理员），两类机器（大模型、第三方应用）。</p>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <tr><th style="width:130px">角色</th><th>核心需求</th><th style="width:90px">对应功能</th><th style="width:110px">入口</th></tr>
+      <tr><td><strong>游客</strong></td><td>出行前、游览中快速得到<b>可靠</b>的灵山答案，不想翻资料、不怕被 AI 骗</td><td>F1–F4</td><td>网页 /chat</td></tr>
+      <tr><td><strong>外部大模型</strong><br><small>（豆包等）</small></td><td>回答灵山问题时有真实依据，不当"编导游"；接入零门槛</td><td>F8 F9</td><td>MCP / REST</td></tr>
+      <tr><td><strong>第三方开发者</strong><br><small>（小程序、导览机器人）</small></td><td>复用景区知识，不必自建资料库</td><td>F9 F10</td><td>REST</td></tr>
+      <tr><td><strong>景区管理员</strong></td><td>资料便捷入库，对外口径可控，看清游客到底在问什么</td><td>F5–F7</td><td>管理后台</td></tr>
+    </table>
+    </div>
+
+    <h3 class="sec">非功能需求</h3>
+    <ul class="plain">
+      <li><b>可溯源</b> —— 每条 AI 回答必须给出知识块来源（文档 / 景点 + 编号），由 qa_log_chunk 表落实</li>
+      <li><b>一致性</b> —— 游客网页与外部 AI 读同一个数据库，杜绝"网页一套口径、AI 一套口径"</li>
+      <li><b>响应性</b> —— 常规检索亚秒级返回；AI 生成期间向用户展示命中的知识块</li>
+      <li><b>内容安全</b> —— 知识块审核通过后才对外可见；纠错反馈可触发下架</li>
+    </ul>
+
+    <h3 class="sec">本期边界（明确不做）</h3>
+    <ul class="plain">
+      <li>不做购票与支付——票价、场次仅作信息展示</li>
+      <li>不对接景区实时客流、门禁等内部系统</li>
+      <li>数据模型支持多景区，本期仅导入灵山胜境一份真实数据</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 附B：数据底座 ============ -->
+<section class="panel" id="data">
+  <div class="panel-hd">
+    <h2>附B · 数据底座概览</h2>
+    <span class="hd-sub">三类真实资料如何落到数据库（正式 ER 图为下一步工作）</span>
+  </div>
+  <div class="panel-bd">
+    <p class="note" style="margin-top:0">资料包里的三类数据各有归宿：结构化数据直接建表，长文档切块并向量化存储，行为明细按事实表组织。全库共 11 张表：</p>
+
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <tr><th style="width:210px">表</th><th>存储内容</th><th style="width:190px">数据来源</th></tr>
+      <tr><td class="r">scenic_area 景区</td><td>景区编号、名称、等级、简介</td><td rowspan="3">景点结构化数据集.docx</td></tr>
+      <tr><td class="r">attraction 景点</td><td>景点 ID、名称、位置、建筑参数、文化内涵、游玩亮点等 11 字段</td></tr>
+      <tr><td class="r">performance 演出场次</td><td>景点 ID、场次时间、时长、说明</td></tr>
+      <tr><td class="r">knowledge_doc 原始文档</td><td>文档名、类型、上传时间、章节结构</td><td rowspan="2">游览指南.docx 等长文档</td></tr>
+      <tr><td class="r">knowledge_chunk 知识块</td><td>所属文档、块序号、正文、<b>语义向量</b>、审核状态——<b>检索与引用的最小单元</b></td></tr>
+      <tr><td class="r">tourist 游客</td><td>游客编号、昵称、年龄、性别</td><td rowspan="2">游客行为数据.xlsx</td></tr>
+      <tr><td class="r">visit_record 游览记录</td><td>游客、景区、日期、停留时长、五项消费、同行人数、满意度</td></tr>
+      <tr><td class="r">qa_log 问答日志</td><td>提问方（网页 / 豆包 / 第三方）、问题、答案、是否满意</td><td rowspan="3">系统运行产生</td></tr>
+      <tr><td class="r">qa_log_chunk 命中关联</td><td>本次问答命中了哪些知识块——<b>答案溯源的实现</b></td></tr>
+      <tr><td class="r">feedback 纠错反馈</td><td>反馈内容、关联问答、处理状态</td></tr>
+      <tr><td class="r">api_key 接口密钥</td><td>密钥、接入方名称（豆包 / 小程序…）、每日限额、状态</td></tr>
+    </table>
+    </div>
+
+    <h3 class="sec">主要关系</h3>
+    <ul class="plain">
+      <li>一个景区（scenic_area）拥有多个景点（attraction），景点含多场演出（performance）</li>
+      <li>一份文档（knowledge_doc）切分为多个知识块（knowledge_chunk），每块存语义向量，支撑相似度检索</li>
+      <li>一次问答（qa_log）通过命中关联表（qa_log_chunk）挂接若干知识块，无论提问来自网页还是豆包，都能"每句答案有出处"</li>
+      <li>一位游客（tourist）产生多条游览记录（visit_record）——行为明细为可选扩展表，本期管理端聚焦知识管理与检索热词</li>
+    </ul>
+  </div>
+</section>
+
+</div><!-- /content -->
+
+<footer class="foot">
+  <span>景区智搜 · 数据库课程设计方案 V1.0</span>
+  <span>姓名 / 学号 / 班级（此处填写）</span>
+  <span>2026-10 · 线下检查版</span>
+</footer>
+
+</div><!-- /main -->
+</body>
+</html>

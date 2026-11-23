@@ -19,6 +19,7 @@
       matcher.py             展品意图模糊匹配（控制层重写时复用）
     prompts/chat_exec.py     prompt 集占位版（真实 prompt 拷回后覆盖）
     text_to_mp3/             讲解音频生成工具
+    rag_backend/             RAG 知识库与问答服务（FastAPI + SQLite，见其 README）
     tests/                   pytest 单测（无重型依赖也可跑，见 conftest.py）
 
 ## 安装

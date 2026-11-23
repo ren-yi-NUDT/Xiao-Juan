@@ -1,0 +1,52 @@
+# ==================== 景区智搜后台配置 ====================
+# 相对路径均相对 rag_backend/ 目录解析。
+
+app:
+  host: "127.0.0.1"
+  port: 8765
+  secret: "xj-dev-secret-change-me"   # 管理端 token 签名密钥，上线前务必修改
+  admin_user: "admin"
+  admin_password: "admin"
+  db_path: "data/xiaojuan.db"
+  upload_dir: "data/uploads"
+  token_hours: 12
+
+# ---------- 向量化（可插拔） ----------
+embedding:
+  provider: "hash"        # hash = 内置轻量字向量（无需模型）；bge = 真语义向量
+  dim: 512                # hash 提供方的向量维度
+  bge_model_path: ""      # 例如 "D:/models/bge-large-zh-v1.5"，填好后 provider 改为 bge
+  device: "cpu"           # bge 用 cuda / cpu
+
+# ---------- 大模型（可选） ----------
+# 不填 api_base / model 时，/api/public/ask 返回抽取式答案（不调用大模型），系统照常可跑。
+# 云 API 示例（OpenAI 兼容）：
+#   DeepSeek：api_base: "https://api.deepseek.com/v1"      model: "deepseek-chat"
+#   Qwen：    api_base: "https://dashscope.aliyuncs.com/compatible-mode/v1"  model: "qwen-plus"
+# 密钥建议留空，改用环境变量 XJ_LLM_API_KEY，避免把 key 写进文件。
+llm:
+  api_base: ""
+  api_key: ""
+  model: ""
+  temperature: 0.2
+  max_tokens: 800
+  timeout_sec: 30
+
+# ---------- 多轮会话 ----------
+chat:
+  history_turns: 5          # 每次请求最多带最近几轮问答（1 轮 = 1 问 1 答）
+  max_history_chars: 4000   # 历史总字数上限，超出从最旧一轮开始裁
+
+# ---------- 检索 ----------
+retrieval:
+  top_k: 5
+  min_score: 0.05
+
+# ---------- 切块 ----------
+chunking:
+  max_chars: 500          # 单块最大字数，超出继续按句切分
+  pair_sentences: true    # true = 相邻两句合并为一块（沿用 lmam 思路）
+
+# ---------- 首次导入 ----------
+seed:
+  package_dir: "../../示范景区公开资料包"   # 三份官方资料所在目录（相对 rag_backend/，向上两级到工作区根）
