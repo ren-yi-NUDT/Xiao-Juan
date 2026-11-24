@@ -1,5 +1,7 @@
 # 设计文档：lmam 脱离 ROS2 的本地纯 Python 改造
 
+> **历史文档（2026-09-15）**：记录当时的 ROS2→本地改造。2026-11-23 已改为前后端分离，并删除实机指令与本地 FAISS 残留，见 `docs/superpowers/specs/2026-11-23-voice-frontend-backend-refactor.md`。
+
 日期：2026-09-15
 状态：已与需求方确认
 分支策略：在 `local` 分支开发，完成后合并回 `lmam`

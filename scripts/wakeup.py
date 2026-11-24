@@ -8,6 +8,8 @@ import numpy as np
 import os
 import sys
 import time
+
+from scripts.config import resolve_device
 @dataclass
 class SharedState:
     mode: str = "IDLE"
@@ -97,36 +99,51 @@ def suppress_stdout():
             sys.stdout = old_stdout
             sys.stderr = old_stderr
 
-# ================== FunASR KWS: iic/speech_charctc_kws_phone-xiaoyun ==================
+# ================== FunASR KWS（关键词为运行时参数） ==================
 class XiaoYunKWS:
     """
-    使用 FunASR 的 CTC-KWS 唤醒模型（关键词为运行时参数，可任意替换）：
-      - 模型: iic/speech_charctc_kws_phone-xiaoyun
-      - 默认唤醒词: "小娟小娟"（经 keywords 参数传入）
+    使用 FunASR 的 CTC-KWS 唤醒模型（关键词运行时传入，可任意替换）。
+    模型路径由 config.yaml 的 kws_model_path 提供；device 支持 auto/cpu/cuda，
+    CUDA 初始化失败会自动回退 CPU。
     """
 
-    DEFAULT_KWS_MODEL = "/home/igraperobot3/Model/speech_charctc_kws_phone-xiaoyun"
-
     def __init__(self, sample_rate: int = 16000, keyword: str = "小娟小娟",
-                 model_path: str = DEFAULT_KWS_MODEL, device: str = "cuda"):
+                 model_path: str = "", device: str = "auto"):
+        if not model_path:
+            raise ValueError("kws_model_path 未配置")
         self.sample_rate = sample_rate
         self.keyword = keyword
+        self.device = resolve_device(device)
 
-        print("[KWS] Loading FunASR KWS model...")
-        # 如果 offline,可将 model 换成本地路径、device 改成 "cpu" 视情况
-        self.model = AutoModel(
-            model=model_path,
-            keywords=keyword,
-            disable_update=True,
-            output_dir="./outputs/debug",
-            device=device,  # KWS 很轻,CPU 即可；如需可改 "cuda"
-        )
+        print(f"[KWS] Loading FunASR KWS model (device={self.device})...")
+        self.model = self._load(model_path, self.device)
         print("[KWS] Model loaded.")
-        # 为了降低延迟 + 不让 buffer 无限制增长
 
         self.buffer = bytearray()
         self.window_sec = 0.8      # 每 0.8 s 做一次检测
         self.max_buffer_sec = 2.0  # 最多保留 2 s 历史
+
+    def _load(self, model_path: str, device: str):
+        try:
+            return AutoModel(
+                model=model_path,
+                keywords=self.keyword,
+                disable_update=True,
+                output_dir="./outputs/debug",
+                device=device,
+            )
+        except Exception as e:  # noqa: BLE001
+            if device == "cuda":
+                print(f"[KWS] CUDA 初始化失败（{e}），回退 CPU 重试")
+                self.device = "cpu"
+                return AutoModel(
+                    model=model_path,
+                    keywords=self.keyword,
+                    disable_update=True,
+                    output_dir="./outputs/debug",
+                    device="cpu",
+                )
+            raise
 
     def feed(self, pcm_bytes: bytes) -> bool:
         """

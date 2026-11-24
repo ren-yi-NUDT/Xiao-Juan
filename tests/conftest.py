@@ -3,6 +3,7 @@
 
 仅当真实导入失败时才注入空模块占位；被测的纯函数不触碰这些库的运行时行为。
 """
+
 import os
 import sys
 import types
@@ -15,8 +16,6 @@ if _REPO_ROOT not in sys.path:
 # name -> 需要 from-import 的属性名列表
 _STUB_SPECS = {
     "torch": [],
-    "openai": ["Client"],
-    "websockets": [],
     "pyaudio": ["PyAudio"],
     "sounddevice": [],
     "soundfile": [],
@@ -27,36 +26,10 @@ _STUB_SPECS = {
     "melo.api": ["TTS"],
     "speech_recognition": ["Recognizer", "Microphone", "WaitTimeoutError", "AudioData"],
     "audioop": [],
-    "cn2an": ["transform"],
-    "rapidfuzz": [],
-    "langchain_community": [],
-    "langchain_community.vectorstores": ["FAISS"],
-    "langchain_huggingface": ["HuggingFaceEmbeddings"],
-    "langchain_core": [],
-    "langchain_core.documents": ["Document"],
 }
 
 # 必须是异常类的属性
 _EXCEPTION_ATTRS = {"WaitTimeoutError"}
-
-# 需要功能性实现（matcher 单测依赖其行为）的属性：name -> {attr: factory}
-# rapidfuzz 不在此列：缺失时整体替换为 _make_fuzz_module()（见 _ensure）
-_FUNCTIONAL_ATTRS = {
-    "cn2an": {"transform": lambda text, mode: text},
-}
-
-
-def _make_fuzz_module():
-    """无 rapidfuzz 时提供行为可预期的 partial_ratio：包含=100，否则 0。"""
-    fuzz = types.ModuleType("rapidfuzz.fuzz")
-
-    def partial_ratio(a, b):
-        return 100 if a in b else 0
-
-    fuzz.partial_ratio = partial_ratio
-    mod = types.ModuleType("rapidfuzz")
-    mod.fuzz = fuzz
-    return mod
 
 
 def _make_module(name, attr_names):
@@ -75,14 +48,7 @@ def _ensure(name, attr_names):
         return
     except ImportError:
         pass
-    if name == "rapidfuzz":
-        sys.modules[name] = _make_fuzz_module()
-    else:
-        mod = _make_module(name, attr_names)
-        for attr, factory in _FUNCTIONAL_ATTRS.get(name, {}).items():
-            if factory is not None:
-                setattr(mod, attr, factory)
-        sys.modules[name] = mod
+    sys.modules[name] = _make_module(name, attr_names)
     # 挂到父模块属性上，保证 `from melo.api import TTS` 这类导入可用
     if "." in name:
         parent, child = name.rsplit(".", 1)

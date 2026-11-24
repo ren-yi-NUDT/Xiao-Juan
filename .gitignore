@@ -29,14 +29,11 @@ ENV/
 env.bak/
 venv.bak/
 
-# ==================== ROS / catkin ====================
-devel/
+# ==================== 构建产物 / 运行时输出 ====================
 logs/
 build/
 bin/
-.catkin_tools
-.catkin_tools_history
-.catkin_workspace
+outputs/
 .code_outline
 
 # Serialized / cache
@@ -136,3 +133,8 @@ temp/
 
 # funasr 调试输出
 outputs/
+
+# ==================== rag_backend 运行时残留 ====================
+# 后端源码在独立的 rag_backend 分支/worktree；本分支只保留前端，
+# 这里出现的 rag_backend/ 仅是本地跑后端留下的 __pycache__ 与 SQLite 库。
+/rag_backend/

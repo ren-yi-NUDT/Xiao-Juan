@@ -1,5 +1,7 @@
 # lmam 本地化改造（脱离 ROS2）实施计划
 
+> **历史文档（2026-09-15）**：记录当时的 ROS2→本地改造。2026-11-23 已改为前后端分离，并删除实机指令与本地 FAISS 残留，见 `docs/superpowers/specs/2026-11-23-voice-frontend-backend-refactor.md`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将 ROS2 包 lmam 改造为单机可跑的纯 Python 语音交互程序（唤醒→ASR→LLM→TTS 本机闭环），实机控制逻辑置空留桩。
