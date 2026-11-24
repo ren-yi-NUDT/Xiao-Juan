@@ -59,6 +59,9 @@ class LMAMApp:
         # 流式播报打断标志：唤醒/停止后不再把后续句子送去 TTS
         self._speak_cancel = threading.Event()
 
+        # 问答串行化：mic 消费线程与 CLI 的 text_ask 可能同时答，必须排队
+        self._answer_lock = threading.Lock()
+
         # 自动续播参数
         self.pause_deadline_sec = float(cfg.auto_resume_silence_sec)
         self.resume_check_period = float(cfg.resume_check_period)
@@ -250,7 +253,15 @@ class LMAMApp:
                 log.error("[consumer] _handle_text error: %s", e)
 
     def _handle_text(self, text: str):
-        """过滤 -> 仅 ACTIVE -> 后端问答（句级边收边播）-> 补播尾部。"""
+        """过滤 -> 仅 ACTIVE -> 后端问答（句级边收边播）-> 补播尾部。
+
+        用 _answer_lock 串行化所有调用方（mic 消费线程 / CLI text_ask）：
+        两个回答若并行，会交错送进 TTS 并互相清掉 _speak_cancel。
+        """
+        with self._answer_lock:
+            return self._handle_text_locked(text)
+
+    def _handle_text_locked(self, text: str):
         text = (text or "").strip()
         if not text:
             return None

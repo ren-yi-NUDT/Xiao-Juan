@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import threading
 import time as _time
 
 from lmam.app import LMAMApp, RAG_FALLBACK_REPLY
@@ -213,3 +214,47 @@ def test_auto_resume_clears_tts_playing_and_keeps_idle():
     assert app.shared_state.audio_playing is True
     assert app.shared_state.mode == "IDLE"        # mp3 播放中保持 IDLE，可被唤醒打断
     assert app.guide_paused is False
+
+
+# ===== 回归：mic 消费线程与 CLI text_ask 同时问答时必须排队 =====
+
+def test_concurrent_ask_is_serialized():
+    """两路问答并行会把句子交错送进 TTS，并互相清掉 _speak_cancel。"""
+    release = threading.Event()
+    entered_ask = threading.Event()
+    order = []
+
+    class BlockingRag(FakeRag):
+        active = 0
+        max_active = 0
+
+        def ask(self, text, on_delta=None):
+            BlockingRag.active += 1
+            BlockingRag.max_active = max(BlockingRag.max_active, BlockingRag.active)
+            try:
+                order.append(text)
+                if text == "第一问":
+                    entered_ask.set()
+                    release.wait(3)          # 模拟后端流式回答较慢
+                return super().ask(text, on_delta)
+            finally:
+                BlockingRag.active -= 1
+
+    rag = BlockingRag()
+    app, _, tts, _ = _make_app(rag=rag)
+
+    t1 = threading.Thread(target=app._handle_text, args=("第一问",))
+    t1.start()
+    assert entered_ask.wait(3)
+
+    t2 = threading.Thread(target=app.text_ask, args=("第二问",))
+    t2.start()
+    _time.sleep(0.3)                         # 给第二路进入排队的时间
+    assert BlockingRag.max_active == 1        # 第二路没有挤进后端问答
+    assert order == ["第一问"]
+
+    release.set()
+    t1.join(3)
+    t2.join(3)
+    assert order == ["第一问", "第二问"]      # 顶多在等锁，不会丢失
+    assert tts.spoken == ["灵山大佛通高八十八米。"] * 2
