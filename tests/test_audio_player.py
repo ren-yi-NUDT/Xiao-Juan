@@ -93,3 +93,43 @@ def test_start_failure_returns_false(fake_music):
     assert player.start("missing.mp3") is False
     time.sleep(0.05)                 # 给足时间确认不会回调
     assert got == []                 # 失败不应触发 finished/interrupted
+
+
+# ===== 回归：can_resume 判定与设备异常不传播 =====
+
+def test_can_resume_reflects_pause_state(fake_music):
+    player = AudioPlayer(poll_interval=0.01)
+    assert player.can_resume() is False      # 还没 start
+    player.start("demo.mp3")
+    assert player.can_resume() is False      # 播放中
+    player.pause()
+    assert player.can_resume() is True
+    player.resume()
+    assert player.can_resume() is False
+    player.stop()
+    assert player.can_resume() is False
+
+
+def test_resume_failure_keeps_paused(fake_music):
+    player = AudioPlayer(poll_interval=0.01)
+    player.start("demo.mp3")
+    player.pause()
+
+    def bad_unpause():
+        raise RuntimeError("音箱掉线")
+
+    fake_music.unpause = bad_unpause
+    assert player.resume() is False
+    assert player.can_resume() is True       # 仍算可续播，交上层退避重试
+
+
+def test_pause_failure_keeps_playing(fake_music):
+    player = AudioPlayer(poll_interval=0.01)
+    player.start("demo.mp3")
+
+    def bad_pause():
+        raise RuntimeError("设备掉线")
+
+    fake_music.pause = bad_pause
+    assert player.pause() is False           # 异常不外抛（否则会杀 mic 线程）
+    assert player.can_resume() is False

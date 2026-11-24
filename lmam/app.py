@@ -66,6 +66,10 @@ class LMAMApp:
         self.pause_deadline_sec = float(cfg.auto_resume_silence_sec)
         self.resume_check_period = float(cfg.resume_check_period)
         self.only_resume_when_idle = bool(cfg.only_resume_when_idle)
+        # 续播失败退避：消费线程每 resume_check_period 调一次 _resume_check，
+        # 不记失败次数会在音箱掉线时每轮重播"我继续为您讲解"。
+        self._resume_fail_count = 0
+        self._resume_backoff_until = 0.0
 
         # ====== 组件（支持注入，便于测试；默认构造真实组件） ======
         self.local_listener = listener or VoiceListener(
@@ -201,12 +205,17 @@ class LMAMApp:
                     time.sleep(0.05)
                     continue
 
-                if self.kws.feed(pcm):
-                    if self.ctrl.can_send("WAKE", min_interval=2.0):
+                # 唤醒判定 + 打断播放整体兜底：音箱/播放器异常的代价不能是
+                # KWS 线程退出（那样麦克风还在跑但永久唤不醒）
+                try:
+                    if self.kws.feed(pcm) and self.ctrl.can_send("WAKE", min_interval=2.0):
                         log.info("[LMAM] wake word detected -> interrupt playback")
                         self._on_wake()
                         # 播唤醒提示语（独立线程，不阻塞 mic 循环；播完回 ACTIVE 保持多轮）
                         self._speak_prompt_async(self.cfg.wakeup_prompt, reactivate=True)
+                except Exception as e:  # noqa: BLE001
+                    log.error("[mic] idle branch error: %s", e)
+                    time.sleep(0.05)
                 continue
 
             # ========== ACTIVE：ASR ==========
@@ -244,7 +253,12 @@ class LMAMApp:
             try:
                 text = self.asr_text_queue.get(timeout=self.resume_check_period)
             except queue.Empty:
-                self._resume_check()
+                # 兜底：续播逻辑里任何异常都不能带走消费线程（否则麦克风还在跑，
+                # 队列只进不出、永久不回答）
+                try:
+                    self._resume_check()
+                except Exception as e:  # noqa: BLE001
+                    log.error("[consumer] _resume_check error: %s", e)
                 continue
             try:
                 self._handle_text(text)
@@ -339,20 +353,46 @@ class LMAMApp:
             return
         if self.only_resume_when_idle and self.shared_state.mode != "IDLE":
             return
+        if time.time() < self._resume_backoff_until:
+            return
         if time.time() - float(self.last_activity_ts) >= self.pause_deadline_sec:
             log.info("[LMAM] silence window reached, auto-resume")
-            self._auto_resume_mp3_once()
+            try:
+                self._auto_resume_mp3_once()
+            except Exception as e:  # noqa: BLE001
+                # 播放器异常（如音箱掉线）不能带走消费线程，也不能每 0.2s 重试
+                log.error("[LMAM] auto-resume error: %s", e)
+                self._note_resume_failure()
+
+    def _note_resume_failure(self):
+        self._resume_fail_count += 1
+        backoff = min(2.0 ** self._resume_fail_count, 30.0)
+        self._resume_backoff_until = time.time() + backoff
+        log.warning("[LMAM] auto-resume 失败 %d 次，%.0fs 后重试",
+                    self._resume_fail_count, backoff)
+        if self._resume_fail_count >= 5:
+            # 连续失败说明断点已经没救了，别再念提示语，交回给用户
+            self.guide_paused = False
+            log.warning("[LMAM] auto-resume 连续失败，放弃续播（guide_paused=False）")
 
     def _auto_resume_mp3_once(self):
+        # 断点若已不可用（被 stop/重载过），resume() 必然 False；
+        # 先判掉，否则每轮沉默窗口都会白念一次"我继续为您讲解"。
+        can_resume = getattr(self.player, "can_resume", None)
+        if callable(can_resume) and not can_resume():
+            log.warning("[LMAM] 断点不可用，放弃自动续播")
+            self.guide_paused = False
+            return
         # 播报续播提示并保持 IDLE（reactivate=False），随后从断点续播 mp3
         self._speak("我继续为您讲解", reactivate=False)
-        ok = self.player.resume()
-        if ok:
+        if self.player.resume():
             self.shared_state.set_audio_playing(True)
             self.guide_paused = False
+            self._resume_fail_count = 0
+            self._resume_backoff_until = 0.0
             log.info("[LMAM] auto-resume mp3 success -> guide_paused=False")
         else:
-            log.warning("[LMAM] auto-resume mp3 failed -> will retry in next silence window")
+            self._note_resume_failure()
 
     # =========================
     # TTS 播报 + 状态机驱动

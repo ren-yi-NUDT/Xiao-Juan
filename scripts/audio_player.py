@@ -37,8 +37,8 @@ class AudioPlayer:
 
     # ---- 对外接口（对齐原 AudioControl 五个命令） ----
     def start(self, path: str) -> bool:
-        music = self._music()
         try:
+            music = self._music()          # pygame.mixer.init 也可能抛（设备掉线）
             music.load(path)
             music.play()
         except Exception as e:
@@ -55,15 +55,32 @@ class AudioPlayer:
             if self._stopped or self._paused:
                 return False
             self._paused = True
-        self._music().pause()
+        try:
+            self._music().pause()
+        except Exception as e:  # noqa: BLE001
+            log.error("[AudioPlayer] pause 失败: %s", e)
+            with self._lock:
+                self._paused = False
+            return False
         return True
+
+    def can_resume(self) -> bool:
+        """断点是否还能续播（未 stop 且处于暂停）。"""
+        with self._lock:
+            return (not self._stopped) and self._paused
 
     def resume(self) -> bool:
         with self._lock:
             if self._stopped or not self._paused:
                 return False
             self._paused = False
-        self._music().unpause()
+        try:
+            self._music().unpause()
+        except Exception as e:  # noqa: BLE001
+            log.error("[AudioPlayer] resume 失败: %s", e)
+            with self._lock:
+                self._paused = True
+            return False
         self._spawn_watcher()
         return True
 
