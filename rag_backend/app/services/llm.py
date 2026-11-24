@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Iterator
+from urllib.parse import urlparse
 
 from app.config import get_config
 
@@ -45,16 +46,29 @@ def llm_settings() -> dict:
 
 
 def is_configured() -> bool:
+    """api_base + model 已配置，且具备可用凭据。
+
+    云服务没配 key 时直接走抽取式，避免每次问答都发一次注定 401 的请求；
+    本机 OpenAI 兼容服务（Ollama/LM Studio 等）通常不需要 key，放行。
+    """
     settings = _settings()
-    return bool(settings["api_base"] and settings["model"])
+    if not (settings["api_base"] and settings["model"]):
+        return False
+    if settings["api_key"]:
+        return True
+    host = (urlparse(settings["api_base"]).hostname or "").lower()
+    return host in ("127.0.0.1", "localhost", "::1", "0.0.0.0")
 
 
 def _extractive_answer(hits: list[dict]) -> str:
     if not hits:
         return "抱歉，知识库中暂时没有找到与这个问题相关的资料。"
     lines = []
-    for i, hit in enumerate(hits[:2], start=1):
-        lines.append(f"{hit['content']} [{i}]")
+    for i, hit in enumerate(hits[:3], start=1):
+        text = " ".join((hit.get("content") or "").split())
+        if len(text) > 160:
+            text = text[:160] + "…"
+        lines.append(f"{text} [{i}]")
     return ("根据景区资料：\n" + "\n\n".join(lines)
             + "\n\n（当前未配置大模型，以上为检索到的资料原文摘要。）")
 
