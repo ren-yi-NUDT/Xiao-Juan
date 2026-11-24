@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""LMAM 本地运行入口。
+"""LMAM 语音前端运行入口（问答由 rag_backend 提供，前后端分离）。
 
 用法：
     python main.py            # 启动语音交互（需音频设备与模型文件）
     python main.py --check    # 只校验配置与模块导入，不加载模型、不开音频
 
 调试 CLI（stdin）：
+    text <问题>               # 无麦克风调试：走 问答后端 -> TTS 完整链路
     audio_start <mp3路径>     # 播放讲解音频（验证打断/续播）
     stop                      # 打断全部本地播放
     quit                      # 退出
@@ -37,11 +38,11 @@ def setup_logging(level=logging.INFO):
 
 
 def run_check() -> int:
-    """轻量自检：配置 + 模块导入。不加载任何模型。
+    """轻量自检：配置 + 模块导入 + 问答后端可达性。不加载任何模型。
 
-    轻量模块（command_bus/audio_player，仅依赖标准库/已装基础包）必须可导入，
-    否则退出码 1；其余模块依赖 cn2an/rapidfuzz/sounddevice/torch/funasr 等
-    第三方库，允许缺失，仅提示——它们在真机环境才就绪。
+    轻量模块（rag_client/audio_player，仅依赖 requests 等基础包）必须可导入，
+    否则退出码 1；其余模块依赖 sounddevice/torch/funasr/melo 等第三方库，
+    允许缺失，仅提示——它们在真机环境才就绪。
     """
     try:
         cfg = load_config(check_paths=False)
@@ -51,9 +52,9 @@ def run_check() -> int:
     print("[check] OK: config 加载成功")
     print(f"[check] 唤醒词: {cfg.wake_word}")
 
-    light = ["scripts.command_bus", "scripts.audio_player"]
-    heavy = ["scripts.matcher", "scripts.tts_local_player",
-             "scripts.llm", "scripts.local_listener", "scripts.wakeup", "lmam.app"]
+    light = ["scripts.rag_client", "scripts.audio_player"]
+    heavy = ["scripts.tts_local_player", "scripts.local_listener",
+             "scripts.wakeup", "lmam.app"]
     failed_light = []
     for mod_name in light + heavy:
         try:
@@ -72,12 +73,24 @@ def run_check() -> int:
                if cfg.get(k) and not os.path.exists(cfg.get(k))]
     if missing:
         print(f"[check] 提示: 以下模型/数据路径在本机不存在（真机运行前需就绪）: {missing}")
+
+    # 问答后端可达性（只提示，不作为失败条件）
+    try:
+        from scripts.rag_client import RagClient
+        health = RagClient(cfg.rag_api_base, cfg.rag_area_id).health()
+        if health:
+            print(f"[check] 问答后端可达: {cfg.rag_api_base} -> {health}")
+        else:
+            print(f"[check] 提示: 问答后端不可达: {cfg.rag_api_base}"
+                  "（跨机请确认 --host 0.0.0.0 与防火墙）")
+    except Exception as e:  # noqa: BLE001
+        print(f"[check] 提示: 问答后端探测失败: {e}")
     print("[check] DONE")
     return 0
 
 
 def cli_loop(app):
-    """调试 CLI：驱动音频播放/打断，验证打断续播体验。"""
+    """调试 CLI：文本问答 + 音频播放/打断。"""
     while True:
         try:
             line = input().strip()
@@ -88,14 +101,18 @@ def cli_loop(app):
         if line == "quit":
             app.shutdown()
             return
-        if line.startswith("audio_start "):
+        if line.startswith("text "):
+            question = line.split(" ", 1)[1].strip()
+            answer = app.text_ask(question)
+            print(f"[cli] answer: {answer}" if answer else "[cli] 无回答（见日志）")
+        elif line.startswith("audio_start "):
             path = line.split(" ", 1)[1].strip()
             print(f"[cli] audio_start -> {app.audio_start(path)}")
         elif line == "stop":
             app.audio_stop()
             print("[cli] stop sent")
         else:
-            print("[cli] 可用命令: audio_start <路径> | stop | quit")
+            print("[cli] 可用命令: text <问题> | audio_start <路径> | stop | quit")
 
 
 def main():

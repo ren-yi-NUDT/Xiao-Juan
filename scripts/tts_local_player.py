@@ -15,6 +15,8 @@ import time
 import sounddevice as sd
 import soundfile as sf
 
+from scripts.config import resolve_device
+
 log = logging.getLogger("lmam.tts")
 
 
@@ -23,7 +25,7 @@ class TTSLocalPlayer:
         self,
         config_path: str,
         ckpt_path: str,
-        device: str = "cuda",
+        device: str = "auto",
         language: str = "ZH",
         speaker_key: str = "ZH",
         speed: float = 1.0,
@@ -31,13 +33,26 @@ class TTSLocalPlayer:
         self.speed = speed
         # 延迟导入：melo 加载很重，--check/单测不需要
         from melo.api import TTS
-        self.tts = TTS(
-            language=language,
-            device=device,
-            use_hf=False,
-            config_path=config_path,
-            ckpt_path=ckpt_path,
-        )
+        resolved = resolve_device(device)
+        try:
+            self.tts = TTS(
+                language=language,
+                device=resolved,
+                use_hf=False,
+                config_path=config_path,
+                ckpt_path=ckpt_path,
+            )
+        except Exception as e:  # noqa: BLE001
+            if resolved != "cuda":
+                raise
+            log.warning("MeloTTS CUDA 初始化失败（%s），回退 CPU", e)
+            self.tts = TTS(
+                language=language,
+                device="cpu",
+                use_hf=False,
+                config_path=config_path,
+                ckpt_path=ckpt_path,
+            )
         self.speaker_ids = self.tts.hps.data.spk2id
         if speaker_key not in self.speaker_ids:
             raise ValueError(

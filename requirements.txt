@@ -1,8 +1,8 @@
-# Python 3.10 建议；MeloTTS 无 PyPI 包，单独安装：
+# Python 3.10/3.11 建议；MeloTTS 无 PyPI 包，单独安装：
 #   pip install git+https://github.com/myshell-ai/MeloTTS.git
-openai>=1.0
 numpy
 pyyaml
+requests>=2.31
 pygame>=2.0
 sounddevice
 soundfile
@@ -11,8 +11,5 @@ pyaudio
 faster-whisper
 funasr
 torch
-cn2an
-rapidfuzz
-langchain-community
-langchain-huggingface
-faiss-cpu
+# Python 3.13 移除了 stdlib audioop，local_listener 会自动回退到 audioop-lts
+audioop-lts; python_version >= "3.13"

@@ -4,12 +4,20 @@ import os
 import tempfile
 import sys
 import numpy as np
-import audioop
+try:
+    import audioop
+except ImportError:  # Python 3.13+ 移除了 audioop
+    import audioop_lts as audioop
 import time
 import math
 from contextlib import contextmanager
 from faster_whisper import WhisperModel
 import sounddevice as sd
+
+try:
+    from scripts.config import resolve_device
+except ModuleNotFoundError:  # 允许 `python scripts/local_listener.py` 直接调试
+    from config import resolve_device
 
 @contextmanager
 def ignore_stderr():
@@ -26,16 +34,26 @@ def ignore_stderr():
 
 class VoiceListener:
     def __init__(self, model_path_or_size="small", device="auto",
-                 mic_device_name="Wireless microphone"):
-        print(f"🔄 正在加载 Whisper 模型: {model_path_or_size} (Device: {device})...")
+                 mic_device_name=""):
+        self.device = resolve_device(device)
+        print(f"🔄 正在加载 Whisper 模型: {model_path_or_size} (Device: {self.device})...")
         try:
-            with ignore_stderr():
-                self.model = WhisperModel(model_path_or_size, device=device, compute_type="int8")
+            self.model = self._load_whisper(model_path_or_size, self.device)
         except Exception as e:
-            print(f"❌ 模型加载失败: {e}")
-            print("⚠️ 尝试加载默认 'base' 模型...")
-            self.model = WhisperModel("base", device=device, compute_type="int8")
-        
+            if self.device == "cuda":
+                print(f"⚠️ CUDA 加载失败（{e}），回退 CPU 重试")
+                self.device = "cpu"
+                try:
+                    self.model = self._load_whisper(model_path_or_size, "cpu")
+                except Exception as e2:
+                    print(f"❌ 模型加载失败: {e2}")
+                    print("⚠️ 尝试加载默认 'base' 模型...")
+                    self.model = self._load_whisper("base", "cpu")
+            else:
+                print(f"❌ 模型加载失败: {e}")
+                print("⚠️ 尝试加载默认 'base' 模型...")
+                self.model = self._load_whisper("base", "cpu")
+
         self.recognizer = sr.Recognizer()
         self.recognizer.energy_threshold = 2000
         self.recognizer.dynamic_energy_threshold = False
@@ -55,9 +73,18 @@ class VoiceListener:
 
         print(f"[Audio] mic_index={self.mic_index}, asr_sr={self.asr_sr}")
 
-    def _find_sdd_device_index(self, mic_device_name="Wireless microphone"):
+    @staticmethod
+    def _load_whisper(model_path_or_size, device):
+        compute_type = "int8" if device == "cpu" else "float16"
+        with ignore_stderr():
+            return WhisperModel(model_path_or_size, device=device, compute_type=compute_type)
+
+    def _find_sdd_device_index(self, mic_device_name=""):
+        """按设备名关键字匹配；空字符串表示使用系统默认输入设备。"""
+        if not mic_device_name:
+            return None
         devices = sd.query_devices()
-        device_index=None
+        device_index = None
         for i, dev in enumerate(devices):
             if mic_device_name in dev['name']:
                 print(f"找到设备: 索引={i}")
@@ -125,15 +152,16 @@ class VoiceListener:
         print(f"[KWS] Warning: could not verify supported sr, fallback default_sr={default_sr}, err={last_err}")
         return default_sr
     def _calibrate_noise(self):
-        if self.mic_index is not None:
-            print("🔇 正在校准环境噪音 (请保持安静 1 秒)...")
-            try:
-                with ignore_stderr():
-                    with sr.Microphone(device_index=self.mic_index) as source:
-                        self.recognizer.adjust_for_ambient_noise(source, duration=1.0)
-                print("✅ 校准完成")
-            except Exception as e:
-                print(f"⚠️ 校准失败: {e}")
+        print("🔇 正在校准环境噪音 (请保持安静 1 秒)...")
+        try:
+            with ignore_stderr():
+                mic = (sr.Microphone(device_index=self.mic_index)
+                       if self.mic_index is not None else sr.Microphone())
+                with mic as source:
+                    self.recognizer.adjust_for_ambient_noise(source, duration=1.0)
+            print("✅ 校准完成")
+        except Exception as e:
+            print(f"⚠️ 校准失败: {e}")
 
     # ---------- KWS stream control ----------
     def ensure_kws_stream(self):
@@ -244,9 +272,16 @@ class VoiceListener:
             pass
 
 if __name__ == "__main__":
-    model_path = "/home/igraperobot3/Model/faster-whisper-large-v3"
-    
-    listener = VoiceListener(model_path_or_size=model_path, device="cuda")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="麦克风 ASR 单独调试")
+    parser.add_argument("--model", required=True, help="faster-whisper 模型路径或尺寸")
+    parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--mic", default="", help="麦克风设备名关键字，空=系统默认")
+    args = parser.parse_args()
+
+    listener = VoiceListener(
+        model_path_or_size=args.model, device=args.device, mic_device_name=args.mic)
     listener.close_kws_stream()
     print("=======================================")
     print("   语音控制系统已启动 (极速优化版)")
