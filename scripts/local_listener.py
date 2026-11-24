@@ -213,6 +213,8 @@ class VoiceListener:
                 chunks.append(self.kws_stream.read(self.kws_frames_per_buffer, exception_on_overflow=False))
             except Exception as e:
                 print(f"[KWS] stream.read error: {e}")
+                # 保留坏流会让 ensure_kws_stream 一直返回，IDLE 下永久唤不醒
+                self.close_kws_stream()
                 return b""
 
         raw = b"".join(chunks)

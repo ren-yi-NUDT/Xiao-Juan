@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import threading
 import time as _time
 
 from lmam.app import LMAMApp, RAG_FALLBACK_REPLY
@@ -60,7 +61,7 @@ class FakePlayer:
         self.actions.append(("interrupt",))
 
 
-def _make_app(rag=None, active=True):
+def _make_app(rag=None, active=True, listener=None, kws=None):
     cfg = Config({
         "wake_word": "小娟小娟", "asr_filter_words": ["志愿者", "字幕"],
         "auto_resume_silence_sec": 0.5,
@@ -71,7 +72,7 @@ def _make_app(rag=None, active=True):
     tts = FakeTTS()
     player = FakePlayer()
     rag = rag or FakeRag()
-    app = LMAMApp(cfg, listener=object(), kws=object(),
+    app = LMAMApp(cfg, listener=listener or object(), kws=kws or object(),
                   rag=rag, tts=tts, player=player)
     if active:
         app.shared_state.set_mode("ACTIVE")
@@ -213,3 +214,137 @@ def test_auto_resume_clears_tts_playing_and_keeps_idle():
     assert app.shared_state.audio_playing is True
     assert app.shared_state.mode == "IDLE"        # mp3 播放中保持 IDLE，可被唤醒打断
     assert app.guide_paused is False
+
+
+# ===== 回归：mic 消费线程与 CLI text_ask 同时问答时必须排队 =====
+
+def test_concurrent_ask_is_serialized():
+    """两路问答并行会把句子交错送进 TTS，并互相清掉 _speak_cancel。"""
+    release = threading.Event()
+    entered_ask = threading.Event()
+    order = []
+
+    class BlockingRag(FakeRag):
+        active = 0
+        max_active = 0
+
+        def ask(self, text, on_delta=None):
+            BlockingRag.active += 1
+            BlockingRag.max_active = max(BlockingRag.max_active, BlockingRag.active)
+            try:
+                order.append(text)
+                if text == "第一问":
+                    entered_ask.set()
+                    release.wait(3)          # 模拟后端流式回答较慢
+                return super().ask(text, on_delta)
+            finally:
+                BlockingRag.active -= 1
+
+    rag = BlockingRag()
+    app, _, tts, _ = _make_app(rag=rag)
+
+    t1 = threading.Thread(target=app._handle_text, args=("第一问",))
+    t1.start()
+    assert entered_ask.wait(3)
+
+    t2 = threading.Thread(target=app.text_ask, args=("第二问",))
+    t2.start()
+    _time.sleep(0.3)                         # 给第二路进入排队的时间
+    assert BlockingRag.max_active == 1        # 第二路没有挤进后端问答
+    assert order == ["第一问"]
+
+    release.set()
+    t1.join(3)
+    t2.join(3)
+    assert order == ["第一问", "第二问"]      # 顶多在等锁，不会丢失
+    assert tts.spoken == ["灵山大佛通高八十八米。"] * 2
+
+
+# ===== 回归：续播失败不能无限重播，也不能带走消费线程 =====
+
+class CrashPlayer(FakePlayer):
+    """模拟音箱掉线：resume 直接抛异常。"""
+
+    def resume(self):
+        raise RuntimeError("音箱掉线")
+
+
+def _wait(cond, timeout=3.0):
+    deadline = _time.time() + timeout
+    while _time.time() < deadline:
+        if cond():
+            return True
+        _time.sleep(0.01)
+    return False
+
+
+def test_resume_check_contains_player_crash():
+    app, _, tts, _ = _make_app(active=False)
+    app.player = CrashPlayer()
+    app.guide_paused = True
+    app.last_activity_ts = _time.time() - 10.0
+    app._resume_check()                      # 不应抛出
+    assert app._resume_fail_count == 1
+    spoken = list(tts.spoken)
+    app._resume_check()                      # 退避期内不再重来
+    assert tts.spoken == spoken
+
+
+def test_resume_gives_up_when_not_resumable():
+    class NoResumePlayer(FakePlayer):
+        def can_resume(self):
+            return False
+
+    app, _, tts, _ = _make_app(active=False)
+    app.player = NoResumePlayer()
+    app.guide_paused = True
+    app._auto_resume_mp3_once()
+    assert app.guide_paused is False          # 断点已废：放弃，不当复读机
+    assert tts.spoken == []                   # 也不白念提示语
+
+
+def test_consumer_thread_survives_resume_crash():
+    """麦克风还在跑但消费线程死了 = 永久不回答，必须兜住。"""
+    app, rag, _, _ = _make_app(active=False)
+    app.player = CrashPlayer()
+    app.only_resume_when_idle = False
+    app.guide_paused = True
+    app.last_activity_ts = _time.time() - 10.0
+    app.start()
+    try:
+        assert _wait(lambda: app._resume_fail_count >= 1)   # 续播已经炸过
+        assert app._consumer_thread.is_alive()
+        app.shared_state.set_mode("ACTIVE")
+        app.asr_text_queue.put("灵山大佛有多高")
+        assert _wait(lambda: rag.calls == ["灵山大佛有多高"])
+    finally:
+        app.shutdown()
+
+
+# ===== 回归：KWS 异常不能带走 mic 线程 =====
+
+class PcmListener:
+    def read_kws_pcm_16k(self, duration_sec=0.2):
+        return b"\x00\x00" * 160
+
+    def close_kws_stream(self):
+        pass
+
+    def listen_and_transcribe(self):
+        return ""
+
+
+class BoomKws:
+    def feed(self, pcm):
+        raise RuntimeError("KWS 崩溃")
+
+
+def test_mic_thread_survives_kws_crash():
+    app, _, _, _ = _make_app(active=False, listener=PcmListener(), kws=BoomKws())
+    app.start()
+    try:
+        assert _wait(lambda: app._mic_thread.is_alive())
+        _time.sleep(0.3)                     # 期间已经抛了好几轮
+        assert app._mic_thread.is_alive()
+    finally:
+        app.shutdown()
