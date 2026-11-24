@@ -1,0 +1,4 @@
+# 这些脚本要在 WSL 里直接执行，必须是 LF，不能被 Windows 转成 CRLF
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf

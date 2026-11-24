@@ -1,0 +1,22 @@
+# 本地运行配置：含真实 API Key，绝不入库
+config/env.scenic
+config/env.*.local
+
+# 大体积素材与产出（本地保留 / 走网盘，不进 git）
+素材/
+assets/
+*.mp4
+*.mov
+*.webm
+*.wav
+*.mp3
+
+# Python 缓存与虚拟环境
+__pycache__/
+*.py[cod]
+.venv/
+
+# 日志与临时文件
+*.log
+*.pid
+.tmp/

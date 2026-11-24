@@ -3,6 +3,16 @@
 大语言模型 + 音频模块：唤醒 → ASR → LLM → TTS 的本地纯 Python 语音闭环。
 已脱离 ROS2：音频本机播放，实机控制（导航/机械臂）以 `dispatch` 桩预留，之后重写。
 
+## 本仓库内容
+
+| 目录 | 内容 | 说明 |
+| --- | --- | --- |
+| 根目录 / `lmam/` / `scripts/` / `tests/` | 小卷机器人主程序 | 原有内容 |
+| `rag_backend/` | 独立 RAG 后端（FastAPI + SQLite） | 在 `rag_backend` 分支 |
+| [`digital-human/`](digital-human/README.md) | 景区讲解数字人（OpenTalking + Wav2Lip） | 本地部署工作台，含 27 篇灵山胜境讲解词、人设包与一键重建脚本 |
+
+`digital-human/` 有独立的 README 和操作手册，路径自包含；API Key 等本地配置不会入库。
+
 ## 目录结构
 
     main.py                  入口（--check 自检）

@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "id": "scenic-guide-zh",
+  "name": "景区讲解员小景",
+  "description": "面向景区游客的中文讲解数字人。回答简洁、口语化、有画面感，先说结论再补一个细节。",
+  "locale": "zh-CN",
+  "avatar": {
+    "id": "woman",
+    "model": "wav2lip"
+  },
+  "voice": {
+    "provider": "edge",
+    "voice_id": "zh-CN-XiaoxiaoNeural"
+  },
+  "agent": {
+    "system_prompt": "prompts/system.md",
+    "style_prompt": "prompts/style.md",
+    "memory_enabled": true,
+    "knowledge_enabled": true,
+    "knowledge_base_ids": []
+  },
+  "runtime": {
+    "stt_provider": "dashscope",
+    "tts_provider": "edge",
+    "preferred_backend": "local"
+  },
+  "safety": {
+    "authorized_avatar": true,
+    "authorized_voice": true,
+    "content_label_required": true
+  }
+}
