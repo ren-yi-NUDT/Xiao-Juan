@@ -3,6 +3,10 @@
 基于 [OpenTalking](https://github.com/datascale-ai/opentalking) 在本机搭建的景区讲解数字人工作台。
 代码与模型跑在 **WSL2 Ubuntu** 里，配置 / 人设 / 知识库 / 脚本放在本目录（Windows 侧），方便编辑和备份。
 
+> **当前形象**：2D 分层讲解员「讲解员小景（2D）」——全身、待机/讲解动作随机、关键词触发、4 档卡通口型，
+> 浏览器渲染不占 GPU。方案详见 [`docs/2D数字人形象方案.md`](docs/2D数字人形象方案.md)。
+> 启动用 `scripts/00_start.sh`（mock 轻量模式，显存约 1.4 GB）。
+
 ## 在仓库中的位置与协作方式
 
 本目录是 [`ren-yi-NUDT/Xiao-Juan`](https://github.com/ren-yi-NUDT/Xiao-Juan) 仓库的

@@ -1,0 +1,369 @@
+{
+  "version": 1,
+  "canvas": {
+    "width": 1024,
+    "height": 1536
+  },
+  "layers": {
+    "base": {
+      "source": "layers/body.png",
+      "rect": [
+        0,
+        0,
+        1024,
+        1536
+      ]
+    },
+    "blink": {
+      "source": "layers/eyes_blink.png",
+      "rect": [
+        0,
+        0,
+        1024,
+        1536
+      ]
+    },
+    "mouth": {
+      "closed": {
+        "source": "layers/mouth_0.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "small": {
+        "source": "layers/mouth_1.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "medium": {
+        "source": "layers/mouth_2.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "large": {
+        "source": "layers/mouth_3.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      }
+    },
+    "head": {
+      "center": {
+        "source": "layers/head_center.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "left": {
+        "source": "layers/head_left.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "right": {
+        "source": "layers/head_right.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "tilt": {
+        "source": "layers/head_tilt.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "eyes_open": {
+        "source": "layers/eyes_open.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      }
+    },
+    "arms": {
+      "idle_breath": {
+        "source": "layers/arms_idle_breath.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "idle_look_left": {
+        "source": "layers/arms_idle_look_left.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "idle_look_right": {
+        "source": "layers/arms_idle_look_right.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "idle_glasses": {
+        "source": "layers/arms_idle_glasses.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "idle_behind": {
+        "source": "layers/arms_idle_behind.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "idle_clasp": {
+        "source": "layers/arms_idle_clasp.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "idle_shift": {
+        "source": "layers/arms_idle_shift.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "speak_neutral": {
+        "source": "layers/arms_speak_neutral.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "speak_point": {
+        "source": "layers/arms_speak_point.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "speak_welcome": {
+        "source": "layers/arms_speak_welcome.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "speak_emphasize": {
+        "source": "layers/arms_speak_emphasize.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "speak_think": {
+        "source": "layers/arms_speak_think.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "speak_measure": {
+        "source": "layers/arms_speak_measure.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "speak_count": {
+        "source": "layers/arms_speak_count.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "speak_invite": {
+        "source": "layers/arms_speak_invite.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      },
+      "speak_nod": {
+        "source": "layers/arms_speak_nod.png",
+        "rect": [
+          0,
+          0,
+          1024,
+          1536
+        ]
+      }
+    }
+  },
+  "audio": {
+    "silence_gate": 0.025,
+    "small_threshold": 0.055,
+    "medium_threshold": 0.105,
+    "attack_ms": 45,
+    "release_ms": 120,
+    "crossfade_ms": 80
+  },
+  "animation": {
+    "breath_period_ms": 2600,
+    "breath_scale": 0.006,
+    "sway_degrees": 0.7,
+    "blink_period_ms": 4200,
+    "blink_duration_ms": 130
+  },
+  "extensions": {
+    "renderer": "layered-light2d-v2",
+    "idle_actions": [
+      "idle_breath",
+      "idle_look_left",
+      "idle_look_right",
+      "idle_glasses",
+      "idle_behind",
+      "idle_clasp",
+      "idle_shift"
+    ],
+    "speak_actions": [
+      "speak_neutral",
+      "speak_point",
+      "speak_welcome",
+      "speak_emphasize",
+      "speak_think",
+      "speak_measure",
+      "speak_count",
+      "speak_invite",
+      "speak_nod"
+    ],
+    "idle_action_period_ms": 5000,
+    "keywords": {
+      "speak_point": [
+        "请看",
+        "这边",
+        "位于",
+        "前方",
+        "左边",
+        "右边",
+        "左侧",
+        "右侧",
+        "沿",
+        "往"
+      ],
+      "speak_welcome": [
+        "欢迎",
+        "大家好",
+        "各位游客",
+        "欢迎大家"
+      ],
+      "speak_emphasize": [
+        "重点",
+        "注意",
+        "一定",
+        "千万",
+        "最重要",
+        "切记",
+        "必须"
+      ],
+      "speak_think": [
+        "据说",
+        "相传",
+        "传说",
+        "让我想想"
+      ],
+      "speak_measure": [
+        "高达",
+        "米",
+        "吨",
+        "巨大",
+        "宽",
+        "高",
+        "长",
+        "重"
+      ],
+      "speak_count": [
+        "第一",
+        "第二",
+        "第三",
+        "首先",
+        "其次",
+        "最后",
+        "一是",
+        "二是"
+      ],
+      "speak_invite": [
+        "请随我",
+        "跟我来",
+        "往前走",
+        "请进",
+        "请这边走"
+      ],
+      "speak_nod": [
+        "对的",
+        "没错",
+        "是的",
+        "可以",
+        "正是",
+        "的确"
+      ]
+    },
+    "switch_on_sentence_boundary": true,
+    "idle_while_user_speaking": true
+  }
+}

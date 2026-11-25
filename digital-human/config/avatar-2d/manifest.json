@@ -1,0 +1,23 @@
+{
+  "id": "lingshan-guide-2d",
+  "name": "讲解员小景（2D）",
+  "model_type": "mock",
+  "fps": 25,
+  "sample_rate": 16000,
+  "width": 1024,
+  "height": 1536,
+  "version": "1.0",
+  "metadata": {
+    "description": "景区讲解数字人：分层 2D 立绘，支持待机动作/讲解动作/关键词触发",
+    "client_renderer": {
+      "type": "light2d",
+      "config": "light2d/avatar.json",
+      "recommended_for": [
+        "mock"
+      ]
+    },
+    "idle_mode": "loop",
+    "person_mode": "single",
+    "source_image": "source.png"
+  }
+}
